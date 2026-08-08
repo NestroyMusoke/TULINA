@@ -1,0 +1,15 @@
+{
+  "source_filename": "MOBIUS_Relay_Data_Pack_v2.json",
+  "imported_as": "tulina_source_pack_v2.json",
+  "files": {
+    "tulina_source_pack_v2.json": "53f8acd6faefce48071f270ad07ed12e7f6fc8b10706b60becbab8ae0c00699a",
+    "tulina_source_workbook_v2.xlsx": "add215891f224250b60fa369eb73c3eb7809de77e149891e8f3e6bf1b16a5369",
+    "stock_card_scan_demo.png": "394661a5ce25ac7f5f2214c511827f69e7380d77c4db55981a5e0c868ab768f2"
+  },
+  "dataset_id": "MOBIUS-UG-MBALE-001",
+  "source_version": "2.0.0",
+  "display_product": "Tulina",
+  "translation_rule": "Legacy names are never rewritten inside signed or hashed fixtures.",
+  "contains_patient_data": false,
+  "contains_private_keys": false
+}
