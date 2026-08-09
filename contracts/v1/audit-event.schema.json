@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tulina.app/contracts/v1/audit-event.schema.json",
+  "title": "Audit event v1",
+  "type": "object",
+  "required": ["event_id", "sequence", "occurred_at", "trace_id", "actor_id", "event_type", "summary", "previous_hash", "event_hash"],
+  "properties": {
+    "event_id": {"type": "string"},
+    "sequence": {"type": "integer", "minimum": 1},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "trace_id": {"type": "string"},
+    "actor_id": {"type": "string"},
+    "event_type": {"type": "string"},
+    "summary": {"type": "string"},
+    "previous_hash": {"type": "string"},
+    "event_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "details": {"type": "object"}
+  }
+}

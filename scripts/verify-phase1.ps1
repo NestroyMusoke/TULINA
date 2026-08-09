@@ -1,14 +1,13 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $python = "C:\Users\X1 Yoga\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
-$pnpm = "C:\Users\X1 Yoga\.cache\codex-runtimes\codex-primary-runtime\dependencies\bin\fallback\pnpm.cmd"
+if (-not (Test-Path $python)) { $python = "python" }
 Push-Location $root
 try {
+    & $python scripts\verify_phase0.py
     & $python -m unittest discover -s backend\tests -v
-    if (Test-Path "$root\frontend\tsconfig.json") {
-        & $pnpm --dir "$root\frontend" test
-        & $pnpm --dir "$root\frontend" build
-    }
+    & $python -m compileall -q backend
+    & $python -m backend.tulina.cli seed --database work\phase1-verify.sqlite3 --reset
 } finally {
     Pop-Location
 }

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tulina.app/contracts/v1/recommendation.schema.json",
+  "title": "Transfer recommendation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "transfer_id", "donor_facility_id", "recipient_facility_id", "product_id", "batch_id", "quantity", "status", "evidence", "policy"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "transfer_id": {"type": "string", "pattern": "^TR-[0-9]{3}$"},
+    "donor_facility_id": {"type": "string"},
+    "recipient_facility_id": {"type": "string"},
+    "product_id": {"type": "string"},
+    "batch_id": {"type": "string"},
+    "quantity": {"type": "integer", "minimum": 1},
+    "status": {"enum": ["FOUND", "AWAITING_APPROVAL", "APPROVED", "NOTE_ISSUED", "IN_TRANSIT", "DELIVERED", "NEEDS_REVIEW", "CANCELLED"]},
+    "evidence": {"type": "object"},
+    "policy": {"type": "object"}
+  }
+}

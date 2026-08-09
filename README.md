@@ -41,5 +41,11 @@ Gemini and Google Cloud adapters activate only through environment variables; se
 .\scripts\test.ps1
 ```
 
-See [PHASES.md](PHASES.md) for the acceptance checklist and [deployment](docs/DEPLOYMENT.md) for Google Cloud.
+To inspect the Phase 1 calculations directly:
 
+```powershell
+python -m backend.tulina.cli recommend
+.\scripts\seed.ps1
+```
+
+See [PHASES.md](PHASES.md) for the acceptance checklist and [deployment](docs/DEPLOYMENT.md) for Google Cloud.

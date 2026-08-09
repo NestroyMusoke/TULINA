@@ -24,8 +24,8 @@ pythonpath = ["backend"]
 testpaths = ["backend/tests"]
 asyncio_mode = "auto"
 
-[tool.setuptools]
-packages = ["backend"]
+[tool.setuptools.packages.find]
+include = ["backend*"]
 
 [tool.ruff]
 line-length = 100
