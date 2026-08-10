@@ -9,6 +9,8 @@ export type TransferStatus =
   | "CANCELLED";
 
 export type DemoRole = "facility_worker" | "dho_approver" | "auditor";
+export type AgentRunStatus = "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+export type AgentStepStatus = "RUNNING" | "COMPLETED" | "WAITING" | "FAILED";
 
 export interface PolicyDecision {
   allowed: boolean;
@@ -93,10 +95,52 @@ export interface NetworkPosition {
   state: "needs_stock" | "safe_surplus" | "covered";
 }
 
+export interface AgentStep {
+  step_id: string;
+  run_id: string;
+  sequence: number;
+  agent_name: string;
+  tool_name: string;
+  status: AgentStepStatus;
+  summary: string;
+  evidence: Record<string, unknown>;
+  started_at: string;
+  completed_at: string | null;
+}
+
+export interface AgentRun {
+  run_id: string;
+  workflow: "district_watch_cycle";
+  status: AgentRunStatus;
+  trace_id: string;
+  requested_by: string;
+  provider: "fixture" | "gemini";
+  model_name: string | null;
+  queue_backend: "local" | "pubsub";
+  request: {
+    schema_version: "1.0";
+    recipient_facility_id: string;
+    product_id: string;
+    trigger: "demo" | "schedule" | "inventory_event";
+  };
+  result_transfer_id: string | null;
+  event_authors: string[];
+  error_code: string | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface AgentRunDetail {
+  run: AgentRun;
+  steps: AgentStep[];
+}
+
 export interface Overview {
   recommendation: Recommendation;
   activity: ActivityEvent[];
   network: NetworkPosition[];
+  agent_run: AgentRunDetail | null;
   synthetic_data: boolean;
   scenario_date: string;
 }

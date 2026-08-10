@@ -1,10 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
-import { api } from "../api";
-import type { DemoRole, Overview } from "../types";
+import { api, waitForAgentRun } from "../api";
+import type { AgentRunDetail, DemoRole, Overview } from "../types";
 
 interface TulinaContextValue {
   overview: Overview | null;
+  agentRun: AgentRunDetail | null;
   role: DemoRole;
   setRole: (role: DemoRole) => void;
   busy: boolean;
@@ -21,6 +22,7 @@ const TulinaContext = createContext<TulinaContextValue | null>(null);
 
 export function TulinaProvider({ children }: { children: React.ReactNode }) {
   const [overview, setOverview] = useState<Overview | null>(null);
+  const [agentRun, setAgentRun] = useState<AgentRunDetail | null>(null);
   const [role, setRole] = useState<DemoRole>("dho_approver");
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +43,9 @@ export function TulinaProvider({ children }: { children: React.ReactNode }) {
     setBusy(true);
     setError(null);
     try {
-      setOverview(await operation());
+      const next = await operation();
+      setOverview(next);
+      setAgentRun(next.agent_run);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Tulina could not complete that action");
       throw reason;
@@ -52,7 +56,21 @@ export function TulinaProvider({ children }: { children: React.ReactNode }) {
 
   const reload = useCallback(() => run(api.overview), [run]);
   const reset = useCallback(() => run(api.reset), [run]);
-  const discover = useCallback(() => run(api.discover), [run]);
+  const discover = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const started = await api.startWatchCycle();
+      const completed = await waitForAgentRun(started, setAgentRun);
+      setAgentRun(completed);
+      setOverview(await api.overview());
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Tulina could not complete the background checks");
+      throw reason;
+    } finally {
+      setBusy(false);
+    }
+  }, []);
   const requestApproval = useCallback(
     (roleOverride?: DemoRole) => run(() => api.requestApproval(roleOverride ?? role)),
     [role, run],
@@ -69,6 +87,7 @@ export function TulinaProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(
     () => ({
       overview,
+      agentRun,
       role,
       setRole,
       busy,
@@ -80,7 +99,7 @@ export function TulinaProvider({ children }: { children: React.ReactNode }) {
       requestApproval,
       approve,
     }),
-    [overview, role, busy, error, online, reload, reset, discover, requestApproval, approve],
+    [overview, agentRun, role, busy, error, online, reload, reset, discover, requestApproval, approve],
   );
   return <TulinaContext.Provider value={value}>{children}</TulinaContext.Provider>;
 }

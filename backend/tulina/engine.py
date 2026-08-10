@@ -78,7 +78,10 @@ class DomainEngine:
                         facility_id=position.facility_id,
                         product_id=position.product_id,
                         quantity=position.need_quantity,
-                        reason=f"{position.days_of_cover} days of cover; target is {self.data.controls['Target_Months_Of_Stock']} months",
+                        reason=(
+                            f"{position.days_of_cover} days of cover; target is "
+                            f"{self.data.controls['Target_Months_Of_Stock']} months"
+                        ),
                     )
                 )
             if (

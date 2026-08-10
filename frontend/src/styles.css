@@ -233,6 +233,30 @@ td span { margin-top: 2px; color: var(--muted); font-size: 9px; }
 .phone-explainer > p { font-size: 14px; }
 .phone-explainer ul { padding-left: 18px; color: var(--muted); font-size: 12px; line-height: 1.8; }
 
+.fleet-progress { margin: 0 0 18px; padding: 18px; background: #f8f5ec; border: 1px solid var(--line); border-left: 4px solid var(--gold); border-radius: 9px; }
+.fleet-progress.completed { border-left-color: var(--green-mid); }
+.fleet-progress.failed { border-left-color: var(--rust); }
+.fleet-heading { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
+.fleet-heading h3 { margin: 3px 0 0; font: 500 22px Georgia, serif; }
+.fleet-heading > span { color: var(--muted); font-size: 10px; }
+.fleet-steps { margin-top: 15px; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
+.fleet-step { min-width: 0; padding: 9px 10px; display: flex; align-items: flex-start; gap: 8px; background: var(--white); border: 1px solid #e0dbce; border-radius: 6px; }
+.fleet-step > span { width: 21px; height: 21px; display: grid; place-items: center; flex: 0 0 auto; color: var(--muted); background: #ece9e0; border-radius: 50%; }
+.fleet-step.completed > span { color: var(--green); background: var(--green-soft); }
+.fleet-step.running > span { color: #765a13; background: #f3e8c6; }
+.fleet-step.failed > span { color: var(--rust); background: var(--rust-soft); }
+.fleet-step strong, .fleet-step small { display: block; }
+.fleet-step strong { font-size: 10px; }
+.fleet-step small { margin-top: 2px; overflow: hidden; color: var(--muted); font-size: 8px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.fleet-proof { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.fleet-proof summary { color: var(--green-mid); cursor: pointer; font-size: 9px; font-weight: 700; }
+.fleet-proof dl { margin: 9px 0 0; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px 15px; }
+.fleet-proof dl div { min-width: 0; }
+.fleet-proof dt { color: var(--muted); font-size: 8px; text-transform: uppercase; letter-spacing: .06em; }
+.fleet-proof dd { margin: 2px 0 0; overflow-wrap: anywhere; font-size: 9px; }
+.spin { animation: tulina-spin 1s linear infinite; }
+@keyframes tulina-spin { to { transform: rotate(360deg); } }
+
 .audit-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(300px,.8fr); gap: 24px; align-items: start; }
 .audit-grid .activity-section { margin: 0; }
 .audit-records { padding: 23px; background: #e8e4d9; border: 1px solid var(--line); border-radius: 10px; }
@@ -298,6 +322,7 @@ td span { margin-top: 2px; color: var(--muted); font-size: 9px; }
   .phone-frame { width: min(360px, 100%); }
   .phone-explainer { max-width: 440px; margin: auto; }
   .inline-alert { margin: 12px 17px 0; }
+  .fleet-steps, .fleet-proof dl { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -20,3 +20,10 @@ Legacy names remain inside canonical signed payloads. They are translated only a
 
 Cloud Run, Firestore, Pub/Sub, Vertex AI/Gemini, and optional Cloud KMS are the submission architecture. The generic Sites hosting path is intentionally not used because it would replace the required GCP topology.
 
+## 006 — ADK orchestrates; durable stores remain authoritative
+
+Tulina uses a Google ADK parent/child hierarchy and Runner for actual multi-agent execution. Invocation state is convenient for passing validated results between agents, but durable run, tool-step, transfer, and audit records remain in repository adapters so restarts do not erase operational evidence.
+
+## 007 — Gemini explains validated facts only
+
+Gemini 3.5 Flash or newer creates a concise structured explanation from deterministic recommendation evidence. It never receives authority to approve, issue a Tulina Note, reconcile a receipt, or mutate medicine stock. Invalid model output fails closed.

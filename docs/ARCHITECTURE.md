@@ -37,3 +37,11 @@ The domain package is independent of FastAPI, Gemini, ADK, and GCP credentials. 
 FastAPI now exposes the derived district overview, network positions, activity history, deterministic demo reset, discovery, approval request, and DHO approval. The React PWA consumes those endpoints through a typed service layer. The interface never calculates or embeds the TR-027 outcome: it renders the repository state produced by the Phase 1 domain engine.
 
 The Judge Demo is an orchestrated UI over real operations. Its four current moments end at human approval; signing, offline receipt, and reconciliation are intentionally reserved for Phase 5. Demo headers make authorization visible, while the server remains the source of truth for permitted roles and workflow transitions.
+
+## Phase 3 implementation boundary
+
+`tulina_fleet` is a real Google ADK parent agent with six registered `BaseAgent` children. ADK's `Runner` invokes them in an explicit sequence and shares only validated invocation state. Every child calls a named ADK `FunctionTool`; tool outputs cross strict Pydantic boundaries before becoming durable state or UI evidence.
+
+FastAPI accepts a versioned watch request, persists it as `QUEUED`, returns HTTP 202, and processes local jobs after the response. The PWA polls the durable run and renders partial agent/tool progress. Pub/Sub mode publishes the same run record for a Cloud Run worker. SQLite persists authoritative job and step state; ADK's in-memory session is invocation-scoped and is not treated as the system of record.
+
+Gemini is deliberately outside the action boundary. In live mode it receives only validated recommendation facts and returns a `DecisionExplanation`; it cannot approve, dispatch, or mutate inventory. Fixture mode returns the same schema without credentials and the agent registry explicitly reports that no Gemini call occurred.

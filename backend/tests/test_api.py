@@ -17,6 +17,7 @@ class ApiTests(unittest.TestCase):
         self.worker = {"X-Tulina-Role": "facility_worker"}
 
     def tearDown(self) -> None:
+        self.app.state.agent_store.close()
         self.app.state.repository.close()
         self.temp.cleanup()
 
@@ -38,7 +39,9 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.client.post("/api/v1/demo/reset", headers=self.dho).status_code, 200)
         discovered = self.client.post("/api/v1/demo/discover", headers=self.worker)
         self.assertEqual(discovered.status_code, 200)
-        self.assertEqual(discovered.json()["activity"][-1]["event_type"], "FOUND_NEARBY")
+        event_types = [row["event_type"] for row in discovered.json()["activity"]]
+        self.assertIn("FOUND_NEARBY", event_types)
+        self.assertEqual(discovered.json()["agent_run"]["run"]["status"], "COMPLETED")
         requested = self.client.post(
             "/api/v1/transfers/TR-027/request-approval", headers=self.worker
         )
@@ -69,6 +72,54 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(donor["state"], "safe_surplus")
         self.assertEqual(recipient["on_hand"], 1)
         self.assertEqual(recipient["state"], "needs_stock")
+
+    def test_background_watch_runs_the_real_adk_fleet(self) -> None:
+        response = self.client.post(
+            "/api/v1/agent-runs/watch",
+            headers=self.worker,
+            json={
+                "recipient_facility_id": "F02",
+                "product_id": "P05",
+                "trigger": "demo",
+            },
+        )
+        self.assertEqual(response.status_code, 202)
+        run_id = response.json()["run"]["run_id"]
+        detail = self.client.get(
+            f"/api/v1/agent-runs/{run_id}", headers=self.worker
+        ).json()
+        self.assertEqual(detail["run"]["status"], "COMPLETED")
+        self.assertEqual(detail["run"]["result_transfer_id"], "TR-027")
+        self.assertEqual(len(detail["steps"]), 6)
+        self.assertEqual(
+            detail["run"]["event_authors"],
+            [
+                "stock_intake_agent",
+                "watch_agent",
+                "match_agent",
+                "steward_agent",
+                "dispatch_agent",
+                "reconciliation_agent",
+            ],
+        )
+
+    def test_agent_registry_is_explicit_about_fixture_mode(self) -> None:
+        registry = self.client.get("/api/v1/agent-registry").json()
+        self.assertEqual(registry["framework"], "Google ADK")
+        self.assertEqual(registry["root_agent"], "tulina_fleet")
+        self.assertEqual(len(registry["agents"]), 6)
+        self.assertEqual(registry["active_provider"], "fixture")
+        self.assertFalse(registry["gemini_called"])
+
+    def test_worker_endpoint_is_role_protected_and_handles_empty_queue(self) -> None:
+        denied = self.client.post(
+            "/api/v1/agent-worker/process-next", headers=self.worker
+        )
+        self.assertEqual(denied.status_code, 403)
+        result = self.client.post(
+            "/api/v1/agent-worker/process-next", headers=self.dho
+        ).json()
+        self.assertFalse(result["processed"])
 
 
 if __name__ == "__main__":

@@ -4,16 +4,14 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any
 
 from pydantic import BaseModel
 
 from .models import Consumption, Facility, InventoryBatch, Product, Route, Vehicle
 
-T = TypeVar("T", bound=BaseModel)
 
-
-def _validated(model: type[T], row: dict[str, Any]) -> T:
+def _validated[T: BaseModel](model: type[T], row: dict[str, Any]) -> T:
     """Validate only contract fields while retaining source data separately."""
     selected = {name: row[name] for name in model.model_fields if name in row}
     return model.model_validate(selected)
@@ -62,4 +60,3 @@ def load_fixture(path: str | Path = "data/fixtures/tulina_source_pack_v2.json") 
 
 def fixture_sha256(path: str | Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
-

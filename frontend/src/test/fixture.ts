@@ -1,8 +1,60 @@
-import type { Overview } from "../types";
+import type { AgentRunDetail, Overview } from "../types";
+
+export const agentRunFixture: AgentRunDetail = {
+  run: {
+    run_id: "RUN-ABCDEF123456",
+    workflow: "district_watch_cycle",
+    status: "COMPLETED",
+    trace_id: "TRACE-AGENT-ABC123",
+    requested_by: "facility_worker",
+    provider: "fixture",
+    model_name: null,
+    queue_backend: "local",
+    request: {
+      schema_version: "1.0",
+      recipient_facility_id: "F02",
+      product_id: "P05",
+      trigger: "demo",
+    },
+    result_transfer_id: "TR-027",
+    event_authors: [
+      "stock_intake_agent",
+      "watch_agent",
+      "match_agent",
+      "steward_agent",
+      "dispatch_agent",
+      "reconciliation_agent",
+    ],
+    error_code: null,
+    created_at: "2026-08-15T11:00:00Z",
+    started_at: "2026-08-15T11:00:01Z",
+    completed_at: "2026-08-15T11:00:02Z",
+  },
+  steps: [
+    ["stock_intake_agent", "validate_inventory_snapshot", "Validated 70 stock positions"],
+    ["watch_agent", "detect_stock_signals", "Detected district needs and safe offers"],
+    ["match_agent", "rank_safe_transfers", "Found 11 safe packs nearby"],
+    ["steward_agent", "evaluate_governance", "All safety gates passed"],
+    ["dispatch_agent", "check_dispatch_gate", "Waiting for the District Health Officer"],
+    ["reconciliation_agent", "check_reconciliation_gate", "No signed receipt is ready"],
+  ].map(([agent_name, tool_name, summary], index) => ({
+    step_id: `STEP-ABCDEF12345${index}`,
+    run_id: "RUN-ABCDEF123456",
+    sequence: index + 1,
+    agent_name,
+    tool_name,
+    status: index < 4 ? "COMPLETED" as const : "WAITING" as const,
+    summary,
+    evidence: {},
+    started_at: "2026-08-15T11:00:01Z",
+    completed_at: "2026-08-15T11:00:02Z",
+  })),
+};
 
 export const overviewFixture: Overview = {
   synthetic_data: true,
   scenario_date: "2026-08-15",
+  agent_run: null,
   recommendation: {
     schema_version: "1.0",
     transfer_id: "TR-027",

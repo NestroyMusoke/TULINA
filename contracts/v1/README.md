@@ -1,5 +1,5 @@
 # Tulina contracts v1
 
-These JSON Schemas are the language-neutral boundary for facility, inventory, recommendation, and audit records. The Python models enforce the same invariants. Later agent and browser phases must validate untrusted/model-produced records against these contracts before invoking a tool or action.
+These JSON Schemas are the language-neutral boundary for facility, inventory, recommendation, audit, and agent-run records. Strict Python and TypeScript models enforce the same invariants. Model-produced records are validated before a tool or action, and agent-run records intentionally exclude prompts and hidden model reasoning.
 
 Contract changes are additive within `v1`; breaking changes require a new directory.

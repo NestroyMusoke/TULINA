@@ -14,7 +14,16 @@ function eventLabel(event: ActivityEvent): string {
   const labels: Record<string, string> = {
     FIXTURE_SEEDED: "Stock picture ready",
     DEMO_RESET: "Demo reset",
+    AGENT_RUN_QUEUED: "Background check queued",
+    AGENT_RUN_STARTED: "Background check started",
+    STOCK_INTAKE_READY: "Stock picture validated",
+    WATCH_SIGNALS_CREATED: "District stock checked",
     FOUND_NEARBY: "Found nearby",
+    STEWARDSHIP_REVIEW_COMPLETED: "Safety review complete",
+    DISPATCH_WAITING_FOR_APPROVAL: "Waiting for human approval",
+    RECONCILIATION_WAITING_FOR_RECEIPT: "Receipt gate standing by",
+    AGENT_RUN_COMPLETED: "Background check complete",
+    AGENT_RUN_FAILED: "Needs human review",
     TRANSFER_AWAITING_APPROVAL: "Sent for approval",
     TRANSFER_APPROVED: "Human approval recorded",
   };

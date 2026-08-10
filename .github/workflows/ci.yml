@@ -11,15 +11,32 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
       - name: Install tested backend dependencies
-        run: python -m pip install "pydantic>=2.10,<3" "fastapi>=0.115,<1" "httpx>=0.28,<1"
+        run: >-
+          python -m pip install
+          "pydantic>=2.12,<3"
+          "fastapi>=0.133,<1"
+          "httpx>=0.28,<1"
+          "pydantic-settings>=2.6,<3"
+          "google-adk>=2.1,<3"
+          "google-genai>=1.75,<2"
+          "google-cloud-pubsub>=2.27,<3"
+          "ruff>=0.9,<1"
       - name: Verify canonical fixture integrity
         run: python scripts/verify_phase0.py
+      - name: Lint backend
+        run: python -m ruff check backend
       - name: Run domain, persistence, and API tests
         run: python -m unittest discover -s backend/tests -v
       - name: Compile Python sources
         run: python -m compileall -q backend
       - name: Verify durable fixture seed
-        run: python -m backend.tulina.cli seed --database work/ci-phase2.sqlite3 --reset
+        run: python -m backend.tulina.cli seed --database work/ci-phase3.sqlite3 --reset
+      - name: Prove background ADK fleet without a chat prompt
+        env:
+          TULINA_MODE: fixture
+          TULINA_QUEUE: local
+          TULINA_AGENT_STEP_DELAY_MS: "0"
+        run: python -m backend.tulina.agents.cli --database work/ci-agent.sqlite3 --reset
 
   frontend:
     runs-on: ubuntu-latest

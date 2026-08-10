@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { PageState } from "../components/PageState";
 import { RecommendationCard } from "../components/RecommendationCard";
 import { ActivityTimeline } from "../components/ActivityTimeline";
+import { FleetProgress } from "../components/FleetProgress";
 import { useTulina } from "../state/TulinaContext";
 
 const moments = ["District picture", "Found nearby", "Approval requested", "Human approved"];
@@ -16,7 +17,7 @@ function inferMoment(status: string, eventTypes: string[]): number {
 }
 
 export function JudgePage() {
-  const { overview, busy, reset, discover, requestApproval, approve } = useTulina();
+  const { overview, agentRun, busy, reset, discover, requestApproval, approve } = useTulina();
   const [moment, setMoment] = useState(0);
   useEffect(() => {
     if (overview) setMoment(inferMoment(overview.recommendation.status, overview.activity.map((event) => event.event_type)));
@@ -84,6 +85,7 @@ export function JudgePage() {
                   "The DHO approves as APR-DHO-001. The decision and evidence are now durable and auditable.",
                 ][moment]}</p>
               </div>
+              <FleetProgress detail={agentRun ?? overview.agent_run} />
               <RecommendationCard recommendation={overview.recommendation} />
             </div>
             <aside className="judge-activity">

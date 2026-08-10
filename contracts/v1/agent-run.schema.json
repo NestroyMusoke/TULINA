@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tulina.local/contracts/v1/agent-run.schema.json",
+  "title": "Tulina Agent Run",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id",
+    "workflow",
+    "status",
+    "trace_id",
+    "requested_by",
+    "provider",
+    "queue_backend",
+    "request",
+    "event_authors",
+    "created_at"
+  ],
+  "properties": {
+    "run_id": { "type": "string", "pattern": "^RUN-[A-F0-9]{12}$" },
+    "workflow": { "const": "district_watch_cycle" },
+    "status": { "enum": ["QUEUED", "RUNNING", "COMPLETED", "FAILED"] },
+    "trace_id": { "type": "string", "minLength": 1 },
+    "requested_by": { "type": "string", "minLength": 1 },
+    "provider": { "enum": ["fixture", "gemini"] },
+    "model_name": { "type": ["string", "null"] },
+    "queue_backend": { "enum": ["local", "pubsub"] },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "recipient_facility_id", "product_id", "trigger"],
+      "properties": {
+        "schema_version": { "const": "1.0" },
+        "recipient_facility_id": { "type": "string", "pattern": "^F[0-9]{2}$" },
+        "product_id": { "type": "string", "pattern": "^P[0-9]{2}$" },
+        "trigger": { "enum": ["demo", "schedule", "inventory_event"] }
+      }
+    },
+    "result_transfer_id": { "type": ["string", "null"] },
+    "event_authors": { "type": "array", "items": { "type": "string" } },
+    "error_code": { "type": ["string", "null"] },
+    "created_at": { "type": "string", "format": "date-time" },
+    "started_at": { "type": ["string", "null"], "format": "date-time" },
+    "completed_at": { "type": ["string", "null"], "format": "date-time" }
+  }
+}

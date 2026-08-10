@@ -2,11 +2,17 @@ from __future__ import annotations
 
 import os
 from enum import StrEnum
+from importlib.metadata import version
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from .agents.fleet import FLEET_REGISTRY
+from .agents.models import WatchCycleRequest
+from .agents.runtime import build_agent_runtime
+from .agents.settings import AgentSettings
+from .agents.store import AgentStoreError
 from .engine import DomainEngine
 from .fixtures import load_fixture
 from .metrics import metrics_for
@@ -63,13 +69,24 @@ def create_app(
     *,
     database: str | Path | None = None,
     fixture: str | Path = "data/fixtures/tulina_source_pack_v2.json",
+    agent_settings: AgentSettings | None = None,
+    publisher=None,
 ) -> FastAPI:
     data = load_fixture(fixture)
     engine = DomainEngine(data)
-    repository = SQLiteRepository(
-        database or os.getenv("TULINA_DATABASE_PATH", "data/runtime/tulina.sqlite3")
+    database_path = database or os.getenv(
+        "TULINA_DATABASE_PATH", "data/runtime/tulina.sqlite3"
     )
+    repository = SQLiteRepository(database_path)
     repository.seed(engine.all_positions(), engine.recommendations())
+    agent_settings = agent_settings or AgentSettings()
+    agent_service = build_agent_runtime(
+        engine=engine,
+        repository=repository,
+        database=database_path,
+        settings=agent_settings,
+        publisher=publisher,
+    )
 
     app = FastAPI(
         title="Tulina API",
@@ -78,6 +95,9 @@ def create_app(
     )
     app.state.engine = engine
     app.state.repository = repository
+    app.state.agent_service = agent_service
+    app.state.agent_store = agent_service.store
+    app.state.agent_settings = agent_settings
     allowed_origins = os.getenv("TULINA_ALLOWED_ORIGINS", "http://localhost:5173")
     app.add_middleware(
         CORSMiddleware,
@@ -97,17 +117,83 @@ def create_app(
             "ready": repository.verify_audit_chain(),
             "database": "sqlite",
             "fixture_records": len(engine.all_positions()),
+            "agent_runtime": "google-adk",
+            "queue_backend": agent_service.queue.backend_name,
         }
 
     @app.get("/api/v1/overview")
     def overview() -> dict[str, object]:
         recommendation = repository.get_transfer("TR-027")
+        latest_agent_run = agent_service.latest_detail()
         return {
             "recommendation": _recommendation_payload(recommendation, engine),
             "activity": [row.model_dump(mode="json") for row in repository.events()][-12:],
             "network": _network_payload(engine, repository),
+            "agent_run": latest_agent_run.model_dump(mode="json") if latest_agent_run else None,
             "synthetic_data": True,
             "scenario_date": data.raw["metadata"]["scenario_date"],
+        }
+
+    @app.get("/api/v1/agent-registry")
+    def agent_registry() -> dict[str, object]:
+        latest = agent_service.latest_detail()
+        return {
+            "framework": "Google ADK",
+            "framework_version": version("google-adk"),
+            "root_agent": agent_service.fleet.name,
+            "agents": FLEET_REGISTRY,
+            "active_provider": agent_settings.provider_name,
+            "configured_model": agent_settings.gemini_model,
+            "gemini_called": bool(latest and latest.run.provider == "gemini"),
+            "queue_backend": agent_service.queue.backend_name,
+        }
+
+    @app.post("/api/v1/agent-runs/watch", status_code=202)
+    def start_watch_cycle(
+        request: WatchCycleRequest,
+        background_tasks: BackgroundTasks,
+        role: Role = Depends(require_role(Role.FACILITY_WORKER, Role.DHO_APPROVER)),
+    ) -> dict[str, object]:
+        run = agent_service.start_watch_cycle(
+            request=request, requested_by=role.value
+        )
+        if agent_service.queue.backend_name == "local":
+            background_tasks.add_task(agent_service.process_next)
+        return agent_service.detail(run.run_id).model_dump(mode="json")
+
+    @app.get("/api/v1/agent-runs/latest")
+    def latest_agent_run(
+        _: Role = Depends(
+            require_role(Role.FACILITY_WORKER, Role.DHO_APPROVER, Role.AUDITOR)
+        ),
+    ) -> dict[str, object]:
+        latest = agent_service.latest_detail()
+        if latest is None:
+            raise HTTPException(status_code=404, detail="No background run exists")
+        return latest.model_dump(mode="json")
+
+    @app.get("/api/v1/agent-runs/{run_id}")
+    def agent_run(
+        run_id: str,
+        _: Role = Depends(
+            require_role(Role.FACILITY_WORKER, Role.DHO_APPROVER, Role.AUDITOR)
+        ),
+    ) -> dict[str, object]:
+        try:
+            return agent_service.detail(run_id).model_dump(mode="json")
+        except AgentStoreError as exc:
+            raise HTTPException(status_code=404, detail="Agent run not found") from exc
+
+    @app.post("/api/v1/agent-worker/process-next")
+    async def process_next_agent_run(
+        _: Role = Depends(require_role(Role.DHO_APPROVER, Role.AUDITOR)),
+    ) -> dict[str, object]:
+        processed = await agent_service.process_next()
+        if processed is None:
+            return {"processed": False, "run": None}
+        return {
+            "processed": True,
+            "run": agent_service.detail(processed.run_id).model_dump(mode="json"),
         }
 
     @app.get("/api/v1/recommendations/{transfer_id}")
@@ -128,6 +214,7 @@ def create_app(
 
     @app.post("/api/v1/demo/reset")
     def reset(_: Role = Depends(require_role(Role.DHO_APPROVER))) -> dict[str, object]:
+        agent_service.store.reset()
         repository.seed(engine.all_positions(), engine.recommendations(), reset=True)
         repository.record_event(
             trace_id="TRACE-TR-027",
@@ -139,25 +226,16 @@ def create_app(
         return overview()
 
     @app.post("/api/v1/demo/discover")
-    def discover(
+    async def discover(
         _: Role = Depends(require_role(Role.FACILITY_WORKER, Role.DHO_APPROVER)),
     ) -> dict[str, object]:
         current = repository.get_transfer("TR-027")
         if current.status != TransferStatus.FOUND:
             raise HTTPException(status_code=409, detail="Reset the demo before discovery")
-        offer = engine.stock_position("F01", "P05")
-        need = engine.stock_position("F02", "P05")
-        repository.record_event(
-            trace_id="TRACE-TR-027",
-            actor_id="watch-and-match",
-            event_type="FOUND_NEARBY",
-            summary="Found safe oxytocin stock nearby for Busiu",
-            details={
-                "donor_safe_release": offer.safe_release_quantity,
-                "recipient_need": need.need_quantity,
-                "proposed_quantity": current.quantity,
-            },
+        agent_service.start_watch_cycle(
+            request=WatchCycleRequest(), requested_by=Role.FACILITY_WORKER.value
         )
+        await agent_service.process_next()
         return overview()
 
     @app.post("/api/v1/transfers/TR-027/request-approval")

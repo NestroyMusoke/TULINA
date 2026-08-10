@@ -45,7 +45,7 @@ class Product(StrictModel):
     unit_volume_l: float = Field(gt=0)
 
     @model_validator(mode="after")
-    def cold_range_is_complete(self) -> "Product":
+    def cold_range_is_complete(self) -> Product:
         if self.storage_mode != "AMBIENT" and (
             self.storage_min_c is None or self.storage_max_c is None
         ):
