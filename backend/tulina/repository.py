@@ -299,6 +299,25 @@ class SQLiteRepository:
         rows = self._connection.execute(query, args).fetchall()
         return tuple(self._event_from_row(row) for row in rows)
 
+    def record_event(
+        self,
+        *,
+        trace_id: str,
+        actor_id: str,
+        event_type: str,
+        summary: str,
+        details: dict[str, object] | None = None,
+    ) -> AuditEvent:
+        """Append a non-state-changing operational event to the audit chain."""
+        with self._lock, self._connection:
+            return self._append_event(
+                trace_id=trace_id,
+                actor_id=actor_id,
+                event_type=event_type,
+                summary=summary,
+                details=details or {},
+            )
+
     def verify_audit_chain(self) -> bool:
         previous = "GENESIS"
         for event in self.events():

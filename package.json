@@ -1,12 +1,11 @@
 {
   "name": "tulina-monorepo",
   "private": true,
-  "packageManager": "pnpm@10.4.1",
+  "packageManager": "npm@11.12.1",
   "scripts": {
-    "dev": "pnpm --dir frontend dev",
-    "build": "pnpm --dir frontend build",
-    "lint": "pnpm --dir frontend lint",
-    "test": "pnpm --dir frontend test"
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "lint": "npm --prefix frontend run lint",
+    "test": "npm --prefix frontend run test"
   }
 }
-

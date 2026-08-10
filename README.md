@@ -16,15 +16,14 @@ Copy-Item .env.example .env
 
 Open `http://localhost:5173/judge`. Fixture mode needs no keys. Choose the visible **Reset demo** button before a rehearsal.
 
-## What is real in fixture mode
+## What is real today
 
 - The recommendation is recalculated from imported facility, stock, consumption, route, expiry, and policy records.
-- Approval calls the server-side role and state-machine checks.
-- Offline note verification uses Web Crypto and the fixture’s authentic P-256 public signature.
-- Receipts are queued in IndexedDB and reconciliation is idempotent.
-- The agent fleet runs asynchronously through the same validated tools used by the Google ADK adapter.
+- The Judge Demo reset, discovery, approval request, and DHO approval call the FastAPI service and durable state machine.
+- District, network, facility, and audit routes render server data with clear synthetic-data labeling.
+- Approval is role-protected on the server and each change appends to a hash-chained event history.
 
-Gemini and Google Cloud adapters activate only through environment variables; see [credentials](docs/CREDENTIAL_CHECKLIST.md) and [architecture](docs/ARCHITECTURE.md).
+The ADK/Gemini fleet, multimodal intake, offline Tulina Note, and Google Cloud adapters are deliberately scheduled for later phases; see [PHASES.md](PHASES.md). They will activate only through environment variables while fixture mode remains credential-free.
 
 ## Repository map
 
@@ -48,4 +47,4 @@ python -m backend.tulina.cli recommend
 .\scripts\seed.ps1
 ```
 
-See [PHASES.md](PHASES.md) for the acceptance checklist and [deployment](docs/DEPLOYMENT.md) for Google Cloud.
+See [PHASES.md](PHASES.md) for the acceptance checklist and [Phase 2 implementation notes](docs/PHASE_2_UI.md) for the current UI/API boundary.

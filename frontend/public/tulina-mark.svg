@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Tulina</title>
+  <desc id="description">A cream T on a deep green field with a warm route line.</desc>
+  <rect width="512" height="512" rx="104" fill="#173e35"/>
+  <path d="M110 124h292v72H296v212h-80V196H110z" fill="#f3f0e8"/>
+  <path d="M111 353c54-67 118-40 154-8 37 33 79 51 136-6" fill="none" stroke="#b75332" stroke-width="22" stroke-linecap="round"/>
+  <circle cx="111" cy="353" r="16" fill="#d3a544"/>
+  <circle cx="401" cy="339" r="16" fill="#d3a544"/>
+</svg>

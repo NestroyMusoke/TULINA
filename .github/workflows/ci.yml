@@ -1,7 +1,7 @@
 name: verify
 on: [push, pull_request]
 jobs:
-  phase-1-domain:
+  backend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -10,16 +10,31 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: pyproject.toml
-      - name: Install Phase 1 runtime dependency
-        run: python -m pip install "pydantic>=2.10,<3"
+      - name: Install tested backend dependencies
+        run: python -m pip install "pydantic>=2.10,<3" "fastapi>=0.115,<1" "httpx>=0.28,<1"
       - name: Verify canonical fixture integrity
         run: python scripts/verify_phase0.py
-      - name: Run domain and persistence tests
+      - name: Run domain, persistence, and API tests
         run: python -m unittest discover -s backend/tests -v
       - name: Compile Python sources
         run: python -m compileall -q backend
       - name: Verify durable fixture seed
-        run: python -m backend.tulina.cli seed --database work/ci-phase1.sqlite3 --reset
+        run: python -m backend.tulina.cli seed --database work/ci-phase2.sqlite3 --reset
 
-  # Phase 2 will add a separate web job after its dependency lock,
-  # application entry points, and browser tests are committed.
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        run: npm ci --prefix frontend
+      - name: Lint frontend
+        run: npm --prefix frontend run lint
+      - name: Run component tests
+        run: npm --prefix frontend run test
+      - name: Build production PWA
+        run: npm --prefix frontend run build
