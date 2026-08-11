@@ -343,6 +343,14 @@ class SQLiteRepository:
         ).fetchone()
         return int(row["count"])
 
+    def has_mutation(self, idempotency_key: str) -> bool:
+        return (
+            self._connection.execute(
+                "SELECT 1 FROM mutation_ledger WHERE idempotency_key=?", (idempotency_key,)
+            ).fetchone()
+            is not None
+        )
+
     def _append_event(
         self,
         *,

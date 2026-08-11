@@ -6,6 +6,8 @@ import unittest
 from fastapi.testclient import TestClient
 
 from backend.tulina.api import create_app
+from backend.tulina.protocol.crypto import LocalP256Signer, canonical_json, encode_envelope
+from backend.tulina.protocol.service import RECEIPT_PREFIX
 
 
 class ApiTests(unittest.TestCase):
@@ -17,6 +19,7 @@ class ApiTests(unittest.TestCase):
         self.worker = {"X-Tulina-Role": "facility_worker"}
 
     def tearDown(self) -> None:
+        self.app.state.protocol_store.close()
         self.app.state.intake_store.close()
         self.app.state.agent_store.close()
         self.app.state.repository.close()
@@ -152,6 +155,97 @@ class ApiTests(unittest.TestCase):
             "/api/v1/agent-worker/process-next", headers=self.dho
         ).json()
         self.assertFalse(result["processed"])
+
+    def test_signed_note_receipt_reconciles_and_duplicate_applies_zero(self) -> None:
+        self.client.post("/api/v1/demo/reset", headers=self.dho)
+        self.client.post("/api/v1/transfers/TR-027/request-approval", headers=self.worker)
+        self.client.post("/api/v1/transfers/TR-027/approve", headers=self.dho)
+        device_signer = LocalP256Signer.generate("KEY-DEV-F02-01")
+        registered = self.client.post(
+            "/api/v1/devices/register",
+            headers=self.worker,
+            json={
+                "schema_version": "1.0",
+                "device_id": "DEV-F02-01",
+                "facility_id": "F02",
+                "key_id": "KEY-DEV-F02-01",
+                "public_jwk": device_signer.jwk,
+            },
+        )
+        self.assertEqual(registered.status_code, 200)
+        issued = self.client.post(
+            "/api/v1/transfers/TR-027/issue-note", headers=self.dho
+        )
+        self.assertEqual(issued.status_code, 200)
+        note = issued.json()["protocol"]["note"]
+        self.assertEqual(note["payload"]["capsule_id"], "CAP-TR027-001")
+        received_at = note["payload"]["iat"]
+        receipt_payload = canonical_json(
+            {
+                "receipt_id": "RCP-TR027-001",
+                "capsule_id": "CAP-TR027-001",
+                "device_id": "DEV-F02-01",
+                "decision": "RECEIVED",
+                "received_at": received_at,
+                "local_sequence": 1,
+            }
+        )
+        receipt_token = encode_envelope(
+            RECEIPT_PREFIX,
+            {
+                "device_key_id": "KEY-DEV-F02-01",
+                "canonical_receipt_payload": receipt_payload,
+                "device_signature_base64url": device_signer.sign(receipt_payload),
+            },
+        )
+        first = self.client.post(
+            "/api/v1/receipts/reconcile",
+            headers=self.worker,
+            json={"receipt_token": receipt_token},
+        ).json()
+        self.assertEqual(first["decision"], "APPLIED_EXACTLY_ONCE")
+        self.assertEqual(first["transfer_mutations_applied"], 1)
+        self.assertEqual(first["inventory_before"], {"donor": 60, "recipient": 1})
+        self.assertEqual(first["inventory_after"], {"donor": 49, "recipient": 12})
+        duplicate = self.client.post(
+            "/api/v1/receipts/reconcile",
+            headers=self.worker,
+            json={"receipt_token": receipt_token},
+        ).json()
+        self.assertEqual(duplicate["decision"], "IDEMPOTENT_ACK")
+        self.assertEqual(duplicate["transfer_mutations_applied"], 0)
+        overview = self.client.get("/api/v1/overview").json()
+        self.assertEqual(overview["recommendation"]["status"], "DELIVERED")
+        self.assertEqual(overview["protocol"]["mutation_count"], 1)
+        events = [row["event_type"] for row in overview["activity"]]
+        self.assertIn("ADK_DISPATCH_COMPLETED", events)
+        self.assertIn("ADK_RECONCILIATION_COMPLETED", events)
+
+    def test_note_cannot_be_issued_before_human_approval(self) -> None:
+        response = self.client.post(
+            "/api/v1/transfers/TR-027/issue-note", headers=self.dho
+        )
+        self.assertEqual(response.status_code, 409)
+
+    def test_registered_device_key_cannot_be_silently_replaced(self) -> None:
+        first = LocalP256Signer.generate("KEY-DEV-F02-01")
+        second = LocalP256Signer.generate("KEY-DEV-F02-01")
+        payload = {
+            "schema_version": "1.0",
+            "device_id": "DEV-F02-01",
+            "facility_id": "F02",
+            "key_id": "KEY-DEV-F02-01",
+            "public_jwk": first.jwk,
+        }
+        self.assertEqual(
+            self.client.post("/api/v1/devices/register", headers=self.worker, json=payload).status_code,
+            200,
+        )
+        payload["public_jwk"] = second.jwk
+        replaced = self.client.post(
+            "/api/v1/devices/register", headers=self.worker, json=payload
+        )
+        self.assertEqual(replaced.status_code, 409)
 
 
 if __name__ == "__main__":

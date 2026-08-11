@@ -360,13 +360,13 @@ FLEET_REGISTRY = (
     {
         "name": "dispatch_agent",
         "label": "Dispatch Agent",
-        "tool": "check_dispatch_gate",
-        "authority": "Waits for approval before issuing anything",
+        "tool": "check_dispatch_gate / issue_signed_tulina_note",
+        "authority": "Issues a signed note only after human approval",
     },
     {
         "name": "reconciliation_agent",
         "label": "Reconciliation Agent",
-        "tool": "check_reconciliation_gate",
-        "authority": "Waits for a verified receipt before mutation",
+        "tool": "check_reconciliation_gate / reconcile_signed_receipt",
+        "authority": "Verifies receipts and applies an idempotent mutation",
     },
 )

@@ -147,7 +147,7 @@ class EngineTests(unittest.TestCase):
 class ContractTests(unittest.TestCase):
     def test_json_schemas_are_versioned_and_parseable(self) -> None:
         paths = sorted(Path("contracts/v1").glob("*.schema.json"))
-        self.assertEqual(len(paths), 6)
+        self.assertEqual(len(paths), 9)
         for path in paths:
             schema = json.loads(path.read_text(encoding="utf-8"))
             self.assertIn("/v1/", schema["$id"])

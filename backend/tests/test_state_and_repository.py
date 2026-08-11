@@ -97,6 +97,7 @@ class RepositoryTests(unittest.TestCase):
         self.assertTrue(self.repo.apply_transfer_once("TR-027", key, context))
         self.assertFalse(self.repo.apply_transfer_once("TR-027", key, context))
         self.assertEqual(self.repo.mutation_count("TR-027"), 1)
+        self.assertTrue(self.repo.has_mutation(key))
         self.assertEqual(self.repo.get_position("F01", "P05").on_hand, 49)
         self.assertEqual(self.repo.get_position("F02", "P05").on_hand, 12)
         self.assertEqual(self.repo.get_transfer("TR-027").status, TransferStatus.DELIVERED)

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tulina.local/contracts/v1/reconciliation-result.schema.json",
+  "title": "Tulina Receipt Reconciliation Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "receipt_id", "capsule_id", "transfer_id", "decision", "reason_code", "message", "transfer_mutations_applied", "pending_receipts", "inventory_before", "inventory_after"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "receipt_id": { "type": ["string", "null"] },
+    "capsule_id": { "type": ["string", "null"] },
+    "transfer_id": { "type": ["string", "null"] },
+    "decision": { "enum": ["APPLIED_EXACTLY_ONCE", "IDEMPOTENT_ACK", "QUARANTINE_CONFLICT", "REJECTED"] },
+    "reason_code": { "type": "string" },
+    "message": { "type": "string" },
+    "transfer_mutations_applied": { "type": "integer", "minimum": 0, "maximum": 1 },
+    "pending_receipts": { "type": "integer", "minimum": 0 },
+    "inventory_before": { "$ref": "#/$defs/inventoryPair" },
+    "inventory_after": { "$ref": "#/$defs/inventoryPair" }
+  },
+  "$defs": {
+    "inventoryPair": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["donor", "recipient"],
+      "properties": {
+        "donor": { "type": "integer", "minimum": 0 },
+        "recipient": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

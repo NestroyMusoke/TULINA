@@ -23,6 +23,10 @@ from .intake.service import MAX_UPLOAD_BYTES, IntakeValidationError, StockCardIn
 from .intake.store import IntakeStoreError, SQLiteIntakeStore
 from .metrics import metrics_for
 from .models import TransferRecommendation, TransferStatus
+from .protocol.agent import ProtocolAgentRuntime
+from .protocol.models import DeviceRegistration, ReceiptSyncRequest
+from .protocol.service import ProtocolError, ProtocolService
+from .protocol.store import ProtocolStoreError, SQLiteProtocolStore
 from .repository import SQLiteRepository
 from .state_machine import InvalidTransition, TransitionContext
 
@@ -102,6 +106,9 @@ def create_app(
         provider=intake_provider or build_stock_card_provider(agent_settings),
     )
     intake_agent_runtime = StockIntakeAgentRuntime(intake_service)
+    protocol_store = SQLiteProtocolStore(database_path)
+    protocol_service = ProtocolService(repository=repository, store=protocol_store)
+    protocol_agent_runtime = ProtocolAgentRuntime(protocol_service)
 
     app = FastAPI(
         title="Tulina API",
@@ -116,6 +123,9 @@ def create_app(
     app.state.intake_store = intake_store
     app.state.intake_service = intake_service
     app.state.intake_agent_runtime = intake_agent_runtime
+    app.state.protocol_store = protocol_store
+    app.state.protocol_service = protocol_service
+    app.state.protocol_agent_runtime = protocol_agent_runtime
     allowed_origins = os.getenv("TULINA_ALLOWED_ORIGINS", "http://localhost:5173")
     app.add_middleware(
         CORSMiddleware,
@@ -138,6 +148,7 @@ def create_app(
             "agent_runtime": "google-adk",
             "queue_backend": agent_service.queue.backend_name,
             "stock_card_provider": intake_service.provider.name,
+            "offline_note_signer": "local-p256",
         }
 
     @app.get("/api/v1/overview")
@@ -151,6 +162,7 @@ def create_app(
             "network": _network_payload(engine, repository),
             "agent_run": latest_agent_run.model_dump(mode="json") if latest_agent_run else None,
             "stock_card_intake": latest_intake.model_dump(mode="json") if latest_intake else None,
+            "protocol": protocol_service.summary().model_dump(mode="json"),
             "synthetic_data": True,
             "scenario_date": data.raw["metadata"]["scenario_date"],
         }
@@ -336,6 +348,7 @@ def create_app(
     def reset(_: Role = Depends(require_role(Role.DHO_APPROVER))) -> dict[str, object]:
         agent_service.store.reset()
         intake_store.reset()
+        protocol_store.reset()
         repository.seed(engine.all_positions(), engine.recommendations(), reset=True)
         repository.record_event(
             trace_id="TRACE-TR-027",
@@ -392,6 +405,48 @@ def create_app(
         except InvalidTransition as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return overview()
+
+    @app.get("/api/v1/trust-bundle")
+    def trust_bundle(
+        _: Role = Depends(require_role(Role.FACILITY_WORKER, Role.DHO_APPROVER, Role.AUDITOR)),
+    ) -> dict[str, object]:
+        return protocol_service.trust_bundle().model_dump(mode="json")
+
+    @app.post("/api/v1/devices/register")
+    def register_device(
+        registration: DeviceRegistration,
+        _: Role = Depends(require_role(Role.FACILITY_WORKER)),
+    ) -> dict[str, object]:
+        try:
+            saved = protocol_service.register_device(registration)
+        except (ProtocolError, ProtocolStoreError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return saved.model_dump(mode="json")
+
+    @app.post("/api/v1/transfers/TR-027/issue-note")
+    async def issue_note(_: Role = Depends(require_role(Role.DHO_APPROVER))) -> dict[str, object]:
+        try:
+            await protocol_agent_runtime.issue("TR-027", Role.DHO_APPROVER.value)
+        except ProtocolError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return overview()
+
+    @app.get("/api/v1/transfers/TR-027/note")
+    def get_note(
+        _: Role = Depends(require_role(Role.FACILITY_WORKER, Role.DHO_APPROVER, Role.AUDITOR)),
+    ) -> dict[str, object]:
+        note = protocol_store.note_for_transfer("TR-027")
+        if note is None:
+            raise HTTPException(status_code=404, detail="The Tulina Note has not been issued")
+        return note.model_dump(mode="json")
+
+    @app.post("/api/v1/receipts/reconcile")
+    async def reconcile_receipt(
+        request: ReceiptSyncRequest,
+        role: Role = Depends(require_role(Role.FACILITY_WORKER)),
+    ) -> dict[str, object]:
+        result = await protocol_agent_runtime.reconcile(request.receipt_token, role.value)
+        return result.model_dump(mode="json")
 
     return app
 

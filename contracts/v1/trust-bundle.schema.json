@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tulina.local/contracts/v1/trust-bundle.schema.json",
+  "title": "Tulina Offline Trust Bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "bundle_id", "issued_at", "expires_at", "keys", "source_label"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "bundle_id": { "type": "string" },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "source_label": { "type": "string" },
+    "keys": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key_id", "algorithm", "public_jwk", "fingerprint"],
+        "properties": {
+          "key_id": { "type": "string" },
+          "algorithm": { "const": "ECDSA_P256_SHA256" },
+          "fingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+          "public_jwk": {
+            "type": "object",
+            "required": ["kty", "crv", "x", "y"],
+            "properties": {
+              "kty": { "const": "EC" },
+              "crv": { "const": "P-256" },
+              "x": { "type": "string" },
+              "y": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

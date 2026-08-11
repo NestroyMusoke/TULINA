@@ -1,4 +1,5 @@
 import type { AgentRunDetail, DemoRole, Overview, StockCardCorrection, StockCardIntake } from "./types";
+import type { DeviceIdentity, ReconciliationResult, TrustBundle } from "./protocol/types";
 
 const API_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, "") ?? "";
 
@@ -62,6 +63,28 @@ export const api = {
     request<Overview>("/api/v1/transfers/TR-027/request-approval", { method: "POST", headers: roleHeaders(role) }),
   approve: (role: DemoRole = "dho_approver") =>
     request<Overview>("/api/v1/transfers/TR-027/approve", { method: "POST", headers: roleHeaders(role) }),
+  trustBundle: () =>
+    request<TrustBundle>("/api/v1/trust-bundle", { headers: roleHeaders("facility_worker") }),
+  registerDevice: (identity: DeviceIdentity) =>
+    request("/api/v1/devices/register", {
+      method: "POST",
+      headers: roleHeaders("facility_worker"),
+      body: JSON.stringify({
+        schema_version: "1.0",
+        device_id: identity.deviceId,
+        facility_id: identity.facilityId,
+        key_id: identity.keyId,
+        public_jwk: identity.publicJwk,
+      }),
+    }),
+  issueNote: () =>
+    request<Overview>("/api/v1/transfers/TR-027/issue-note", { method: "POST", headers: roleHeaders("dho_approver") }),
+  reconcileReceipt: (receiptToken: string) =>
+    request<ReconciliationResult>("/api/v1/receipts/reconcile", {
+      method: "POST",
+      headers: roleHeaders("facility_worker"),
+      body: JSON.stringify({ receipt_token: receiptToken }),
+    }),
 };
 
 export const demoStockCardImageUrl = `${API_URL}/api/v1/demo/stock-card-image`;

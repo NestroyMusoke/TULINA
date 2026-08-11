@@ -1,3 +1,5 @@
+import type { ReconciliationResult, SignedTulinaNote } from "./protocol/types";
+
 export type TransferStatus =
   | "FOUND"
   | "AWAITING_APPROVAL"
@@ -236,6 +238,12 @@ export interface Overview {
   network: NetworkPosition[];
   agent_run: AgentRunDetail | null;
   stock_card_intake: StockCardIntake | null;
+  protocol: {
+    note: SignedTulinaNote | null;
+    latest_reconciliation: ReconciliationResult | null;
+    mutation_count: number;
+    quarantined_count: number;
+  };
   synthetic_data: boolean;
   scenario_date: string;
 }

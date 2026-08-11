@@ -2,10 +2,20 @@ import { ArrowDown, Check, Package, Radio, ShieldCheck, Smartphone } from "lucid
 
 import { PageState } from "../components/PageState";
 import { StatusPill } from "../components/StatusPill";
+import { TulinaNoteCard } from "../components/TulinaNoteCard";
 import { useTulina } from "../state/TulinaContext";
 
 export function FacilityPage() {
-  const { overview, online } = useTulina();
+  const {
+    overview,
+    online,
+    networkMode,
+    setNetworkMode,
+    offlineState,
+    busy,
+    receiveOffline,
+    syncReceipts,
+  } = useTulina();
   const busiu = overview?.network.find((row) => row.facility_id === "F02" && row.product_id === "P05");
   return (
     <PageState>
@@ -14,6 +24,13 @@ export function FacilityPage() {
           <section className="page-title-row">
             <div><span className="eyebrow">Facility phone</span><h1>Busiu receiving view</h1><p>The same recommendation, simplified for the designated facility worker.</p></div>
             <div className="device-label"><Smartphone aria-hidden="true" /><span>DEV-F02-01</span></div>
+          </section>
+          <section className={`offline-demo-bar ${online ? "connected" : "disconnected"}`}>
+            <div><Radio aria-hidden="true" /><span><strong>{online ? "Connected" : "Offline demo"}</strong>{online ? "Queued receipts can check in" : "No server calls — trust stays on this phone"}</span></div>
+            <div className="network-toggle" role="group" aria-label="Demo network state">
+              <button className={networkMode === "online" ? "active" : ""} onClick={() => setNetworkMode("online")}>Online</button>
+              <button className={networkMode === "offline" ? "active" : ""} onClick={() => setNetworkMode("offline")}>Offline</button>
+            </div>
           </section>
           <div className="phone-stage">
             <div className="phone-frame">
@@ -40,6 +57,14 @@ export function FacilityPage() {
             </div>
             <aside className="phone-explainer"><span className="section-kicker">Designed for the receiving moment</span><h2>Only what the worker needs</h2><p>Clear medicine, quantity, source, safety state, and approval—without exposing private district stock calculations.</p><ul><li>Large, touch-friendly controls</li><li>Network state always visible</li><li>Technical evidence stays behind the district view</li></ul></aside>
           </div>
+          <TulinaNoteCard
+            note={overview.protocol.note}
+            offlineState={offlineState}
+            online={online}
+            busy={busy}
+            onScan={receiveOffline}
+            onSync={syncReceipts}
+          />
         </div>
       ) : null}
     </PageState>

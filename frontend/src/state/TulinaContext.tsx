@@ -1,7 +1,21 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { api, waitForAgentRun } from "../api";
+import { decodeNote, encodeEnvelope, verifyNoteOffline } from "../protocol/codec";
+import {
+  cacheTrustBundle,
+  getCachedTrustBundle,
+  getOrCreateDeviceIdentity,
+  latestReceipt,
+  pendingReceipts,
+  resetOfflineState,
+  updateReceipt,
+  verifyAndQueueReceipt,
+} from "../protocol/offlineStore";
+import type { OfflineState, QueuedReceipt } from "../protocol/types";
 import type { AgentRunDetail, DemoRole, Overview, StockCardCorrection, StockCardIntake } from "../types";
+
+export type NetworkMode = "auto" | "online" | "offline";
 
 interface TulinaContextValue {
   overview: Overview | null;
@@ -12,6 +26,9 @@ interface TulinaContextValue {
   busy: boolean;
   error: string | null;
   online: boolean;
+  networkMode: NetworkMode;
+  setNetworkMode: (mode: NetworkMode) => void;
+  offlineState: OfflineState;
   reload: () => Promise<void>;
   reset: () => Promise<void>;
   discover: () => Promise<void>;
@@ -21,6 +38,11 @@ interface TulinaContextValue {
   acceptStockCard: () => Promise<void>;
   requestApproval: (roleOverride?: DemoRole) => Promise<void>;
   approve: (roleOverride?: DemoRole) => Promise<void>;
+  issueNote: () => Promise<void>;
+  receiveOffline: (token?: string) => Promise<void>;
+  syncReceipts: (force?: boolean) => Promise<void>;
+  retryLatestReceipt: () => Promise<void>;
+  proveTamperBlocked: () => Promise<void>;
 }
 
 const TulinaContext = createContext<TulinaContextValue | null>(null);
@@ -32,11 +54,19 @@ export function TulinaProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<DemoRole>("dho_approver");
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [online, setOnline] = useState(() => navigator.onLine);
+  const [browserOnline, setBrowserOnline] = useState(() => navigator.onLine);
+  const [networkMode, setNetworkMode] = useState<NetworkMode>("auto");
+  const online = networkMode === "auto" ? browserOnline : networkMode === "online";
+  const [offlineState, setOfflineState] = useState<OfflineState>({
+    verification: null,
+    pendingCount: 0,
+    latestReceipt: null,
+    latestResult: null,
+  });
 
   useEffect(() => {
-    const markOnline = () => setOnline(true);
-    const markOffline = () => setOnline(false);
+    const markOnline = () => setBrowserOnline(true);
+    const markOffline = () => setBrowserOnline(false);
     window.addEventListener("online", markOnline);
     window.addEventListener("offline", markOffline);
     return () => {
@@ -62,7 +92,12 @@ export function TulinaProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const reload = useCallback(() => run(api.overview), [run]);
-  const reset = useCallback(() => run(api.reset), [run]);
+  const reset = useCallback(async () => {
+    setNetworkMode("online");
+    await resetOfflineState();
+    setOfflineState({ verification: null, pendingCount: 0, latestReceipt: null, latestResult: null });
+    await run(api.reset);
+  }, [run]);
   const discover = useCallback(async () => {
     setBusy(true);
     setError(null);
@@ -116,6 +151,132 @@ export function TulinaProvider({ children }: { children: React.ReactNode }) {
     [role, run],
   );
 
+  const prepareDevice = useCallback(async () => {
+    const bundle = await api.trustBundle();
+    await cacheTrustBundle(bundle);
+    const identity = await getOrCreateDeviceIdentity();
+    await api.registerDevice(identity);
+  }, []);
+
+  const issueNote = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await prepareDevice();
+      const next = await api.issueNote();
+      setOverview(next);
+      setAgentRun(next.agent_run);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Tulina could not prepare the signed note");
+      throw reason;
+    } finally {
+      setBusy(false);
+    }
+  }, [prepareDevice]);
+
+  const refreshOfflineState = useCallback(async (latest?: QueuedReceipt | null) => {
+    const pending = await pendingReceipts();
+    const receipt = latest === undefined ? await latestReceipt() : latest;
+    setOfflineState((current) => ({
+      ...current,
+      pendingCount: pending.length,
+      latestReceipt: receipt,
+      latestResult: receipt?.result ?? current.latestResult,
+    }));
+  }, []);
+
+  const receiveOffline = useCallback(async (token?: string) => {
+    const noteToken = token ?? overview?.protocol.note?.qr_payload;
+    if (!noteToken) throw new Error("Issue the Tulina Note before receiving medicine");
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await verifyAndQueueReceipt(noteToken);
+      setOfflineState((current) => ({
+        ...current,
+        verification: result.verification,
+        latestReceipt: result.receipt ?? current.latestReceipt,
+      }));
+      await refreshOfflineState(result.receipt ?? undefined);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "The note could not be checked offline");
+      throw reason;
+    } finally {
+      setBusy(false);
+    }
+  }, [overview?.protocol.note?.qr_payload, refreshOfflineState]);
+
+  const syncInFlight = useRef<Promise<void> | null>(null);
+  const syncReceipts = useCallback((force = false): Promise<void> => {
+    if (!online && !force) return Promise.resolve();
+    if (syncInFlight.current) return syncInFlight.current;
+    const operation = (async () => {
+      setBusy(true);
+      setError(null);
+      try {
+        const queued = await pendingReceipts();
+        let newest: QueuedReceipt | null = null;
+        for (const receipt of queued) {
+          const result = await api.reconcileReceipt(receipt.receiptToken);
+          newest = await updateReceipt(receipt, result);
+        }
+        if (newest) {
+          setOfflineState((current) => ({ ...current, latestReceipt: newest, latestResult: newest?.result ?? null }));
+        }
+        await refreshOfflineState(newest ?? undefined);
+        const refreshed = await api.overview();
+        setOverview(refreshed);
+        setAgentRun(refreshed.agent_run);
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : "Queued receipts could not check in");
+        throw reason;
+      } finally {
+        setBusy(false);
+      }
+    })();
+    syncInFlight.current = operation;
+    void operation.then(
+      () => { if (syncInFlight.current === operation) syncInFlight.current = null; },
+      () => { if (syncInFlight.current === operation) syncInFlight.current = null; },
+    );
+    return operation;
+  }, [online, refreshOfflineState]);
+
+  const previousOnline = useRef(online);
+  useEffect(() => {
+    const reconnected = !previousOnline.current && online;
+    previousOnline.current = online;
+    if (reconnected) void syncReceipts().catch(() => undefined);
+  }, [online, syncReceipts]);
+
+  const retryLatestReceipt = useCallback(async () => {
+    const receipt = offlineState.latestReceipt ?? await latestReceipt();
+    if (!receipt) throw new Error("No receipt is available to retry");
+    const result = await api.reconcileReceipt(receipt.receiptToken);
+    const updated = await updateReceipt(receipt, result);
+    setOfflineState((current) => ({ ...current, latestReceipt: updated, latestResult: result }));
+    await reload();
+  }, [offlineState.latestReceipt, reload]);
+
+  const proveTamperBlocked = useCallback(async () => {
+    const note = overview?.protocol.note;
+    const bundle = await getCachedTrustBundle();
+    if (!note || !bundle) throw new Error("Issue and cache a Tulina Note first");
+    const decoded = decodeNote(note.qr_payload);
+    const tamperedPayload = decoded.canonicalPayload.replace('"qty":11', '"qty":17');
+    const tampered = encodeEnvelope("TULINA1", {
+      key_id: decoded.keyId,
+      canonical_payload: tamperedPayload,
+      signature_base64url: decoded.signature,
+    });
+    const verification = await verifyNoteOffline({
+      token: tampered,
+      trustBundle: bundle,
+      facilityId: "F02",
+    });
+    setOfflineState((current) => ({ ...current, verification }));
+  }, [overview?.protocol.note]);
+
   useEffect(() => {
     void reload().catch(() => undefined);
   }, [reload]);
@@ -130,6 +291,9 @@ export function TulinaProvider({ children }: { children: React.ReactNode }) {
       busy,
       error,
       online,
+      networkMode,
+      setNetworkMode,
+      offlineState,
       reload,
       reset,
       discover,
@@ -139,6 +303,11 @@ export function TulinaProvider({ children }: { children: React.ReactNode }) {
       acceptStockCard,
       requestApproval,
       approve,
+      issueNote,
+      receiveOffline,
+      syncReceipts,
+      retryLatestReceipt,
+      proveTamperBlocked,
     }),
     [
       overview,
@@ -148,6 +317,8 @@ export function TulinaProvider({ children }: { children: React.ReactNode }) {
       busy,
       error,
       online,
+      networkMode,
+      offlineState,
       reload,
       reset,
       discover,
@@ -157,6 +328,11 @@ export function TulinaProvider({ children }: { children: React.ReactNode }) {
       acceptStockCard,
       requestApproval,
       approve,
+      issueNote,
+      receiveOffline,
+      syncReceipts,
+      retryLatestReceipt,
+      proveTamperBlocked,
     ],
   );
   return <TulinaContext.Provider value={value}>{children}</TulinaContext.Provider>;

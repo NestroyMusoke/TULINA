@@ -13,6 +13,6 @@ The deterministic four-minute path uses `TR-027`: Mbale Regional Referral Hospit
 
 Every moment invokes an API or offline protocol operation. “Next moment” never replaces content with a static screenshot.
 
-## Current Phase 4 rehearsal
+## Current Phase 5 rehearsal
 
-The Judge Demo now starts with the supplied synthetic stock-card image. **Read demo card** invokes the real ADK Stock Intake Agent and validated extraction tool, then displays four movement rows, the 60-pack balance, early batch, expiry, cold-chain evidence, field confidence, and the provider proof. A facility worker explicitly confirms the observation; only then can the next moment publish the inventory event and run the six-agent district workflow. Reset removes both intake and agent runs before reseeding the canonical fixture. Signing, offline receipt, and reconciliation extend this route in Phase 5.
+The Judge Demo now runs all eight moments with real operations. After the six-agent district watch and DHO approval, the ADK Dispatch Agent issues the signed QR note and the phone caches trust. The network toggle then forces the facility view offline; Web Crypto verifies the note and IndexedDB queues a device-signed receipt. Reconnection invokes the ADK Reconciliation Agent, applies one mutation, and shows before/after stock. The final moment retries the same receipt for zero additional writes and changes the signed quantity to prove rejection. Reset clears intake, runs, protocol state, browser keys, nonce memory, and receipts before reseeding the canonical fixture.

@@ -131,6 +131,12 @@ export const agentRunFixture: AgentRunDetail = {
 export const overviewFixture: Overview = {
   synthetic_data: true,
   scenario_date: "2026-08-15",
+  protocol: {
+    note: null,
+    latest_reconciliation: null,
+    mutation_count: 0,
+    quarantined_count: 0,
+  },
   agent_run: null,
   stock_card_intake: null,
   recommendation: {

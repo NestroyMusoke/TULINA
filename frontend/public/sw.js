@@ -1,5 +1,5 @@
-const CACHE = "tulina-shell-v1";
-const SHELL = ["/", "/judge", "/index.html", "/manifest.webmanifest", "/tulina-mark.svg"];
+const CACHE = "tulina-shell-v2";
+const SHELL = ["/", "/judge", "/facility", "/index.html", "/manifest.webmanifest", "/tulina-mark.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));

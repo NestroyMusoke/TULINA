@@ -29,6 +29,15 @@ function eventLabel(event: ActivityEvent): string {
     AGENT_RUN_FAILED: "Needs human review",
     TRANSFER_AWAITING_APPROVAL: "Sent for approval",
     TRANSFER_APPROVED: "Human approval recorded",
+    TRANSFER_NOTE_ISSUED: "Tulina Note issued",
+    TRANSFER_IN_TRANSIT: "Ready for offline receiving",
+    RECIPIENT_DEVICE_READY: "Receiving phone ready",
+    ADK_DISPATCH_COMPLETED: "Dispatch Agent signed the note",
+    TRANSFER_DELIVERED: "Delivery confirmed",
+    ADK_RECONCILIATION_COMPLETED: "Reconciliation Agent checked receipt",
+    DUPLICATE_RECEIPT_RETRY: "Duplicate applied zero",
+    RECEIPT_REJECTED: "Unsafe receipt rejected",
+    RECEIPT_QUARANTINED: "Needs human review",
   };
   return labels[event.event_type] ?? event.event_type.toLowerCase().replaceAll("_", " ");
 }

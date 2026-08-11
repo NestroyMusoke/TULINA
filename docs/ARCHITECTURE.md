@@ -36,7 +36,7 @@ The domain package is independent of FastAPI, Gemini, ADK, and GCP credentials. 
 
 FastAPI now exposes the derived district overview, network positions, activity history, deterministic demo reset, discovery, approval request, and DHO approval. The React PWA consumes those endpoints through a typed service layer. The interface never calculates or embeds the TR-027 outcome: it renders the repository state produced by the Phase 1 domain engine.
 
-The Judge Demo is an orchestrated UI over real operations. Its four current moments end at human approval; signing, offline receipt, and reconciliation are intentionally reserved for Phase 5. Demo headers make authorization visible, while the server remains the source of truth for permitted roles and workflow transitions.
+The Judge Demo is an orchestrated UI over real operations. Demo headers make authorization visible, while the server remains the source of truth for permitted roles and workflow transitions.
 
 ## Phase 3 implementation boundary
 
@@ -51,3 +51,9 @@ Gemini is deliberately outside the action boundary. In live mode it receives onl
 Camera and file uploads enter a dedicated ADK `stock_intake_agent`, which invokes the `extract_stock_card` function tool. The tool selects either the Gemini multimodal provider or the saved fixture provider, validates the structured result, resolves facility/product/batch IDs against registries, and persists an intake record. The ADK session is deleted after each invocation, so raw image bytes are not retained in application state; only the filename, MIME type, size, SHA-256 digest, structured extraction, evidence, and corrections remain.
 
 The fixture provider is bound to the supplied synthetic PNG digest and refuses any other image instead of pretending it performed vision. Gemini output crosses the same `RawStockCardExtraction` contract. Confidence below 0.85, missing evidence, unknown identities, ledger inconsistencies, batch/expiry conflicts, or storage-range conflicts move the record to `NEEDS_REVIEW`. A facility worker must correct those fields and explicitly accept every observation before an `inventory_event` may start the district watch.
+
+## Phase 5 implementation boundary
+
+Dispatch and reconciliation are dedicated real ADK agent invocations over validated function tools. Models never sign, approve, verify, or mutate medicine. `ProtocolService` owns canonical encoding, P-256 checks, identity binding, replay decisions, and reconciliation; `SQLiteProtocolStore` persists local issuer identity, notes, registered public device keys, receipts, consumed nonces, and outcomes.
+
+The facility PWA caches only public issuer trust in IndexedDB and keeps its non-exportable Web Crypto private key locally. Offline scanning uses Web Crypto and a local nonce set without calling FastAPI or Gemini. Reconnection uploads the signed receipt; the repository transaction and idempotency ledger apply at most one inventory mutation. A cloud-state conflict is quarantined instead of merged.

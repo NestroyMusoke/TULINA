@@ -79,7 +79,7 @@ describe("Tulina judge experience", () => {
     fireEvent.click(screen.getByRole("button", { name: "Confirm stock observation" }));
     expect(await screen.findByText("Ready for district watch")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Next moment" }));
-    await waitFor(() => expect(screen.getByText("Moment 2 of 4")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Moment 2 of 8")).toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/api/v1/agent-runs/watch"),
       expect.objectContaining({ method: "POST", body: expect.stringContaining('"trigger":"inventory_event"') }),

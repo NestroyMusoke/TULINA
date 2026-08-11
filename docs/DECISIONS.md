@@ -33,3 +33,7 @@ Gemini 3.5 Flash or newer creates a concise structured explanation from determin
 The Stock Intake Agent may transcribe a card, but deterministic registry and consistency checks decide whether the output is usable. Low-confidence or conflicting fields are blocked behind correction. Even a high-confidence extraction remains provisional until a facility worker accepts it; Gemini never updates inventory directly.
 
 Fixture mode recognizes only the supplied synthetic image by SHA-256 and replays a saved extraction with the same contract as live Gemini. Uploaded image bytes remain invocation-scoped and are discarded after extraction; durable records retain only the image digest and structured evidence.
+
+## 009 — Offline authority is public-key verifiable, not model-dependent
+
+Tulina signs canonical note and receipt payloads with P-256 and verifies them using deterministic cryptographic libraries. The browser caches issuer public trust and owns a non-exportable device private key; Gemini and ADK never receive key material. ADK Dispatch and Reconciliation Agents invoke allowlisted signing/reconciliation tools, while the tools and durable state machine retain action authority. Local signer material is generated into ignored runtime storage; production replaces that signer with Cloud KMS.

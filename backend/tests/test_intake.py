@@ -27,6 +27,7 @@ class IntakeApiTests(unittest.TestCase):
         self.dho = {"X-Tulina-Role": "dho_approver"}
 
     def tearDown(self) -> None:
+        self.app.state.protocol_store.close()
         self.app.state.intake_store.close()
         self.app.state.agent_store.close()
         self.app.state.repository.close()
@@ -116,6 +117,7 @@ class CorrectionGateTests(unittest.TestCase):
         self.worker = {"X-Tulina-Role": "facility_worker"}
 
     def tearDown(self) -> None:
+        self.app.state.protocol_store.close()
         self.app.state.intake_store.close()
         self.app.state.agent_store.close()
         self.app.state.repository.close()
