@@ -3,7 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 
 import { App } from "./App";
 import { TulinaProvider } from "./state/TulinaContext";
-import { agentRunFixture, overviewFixture } from "./test/fixture";
+import { agentRunFixture, overviewFixture, stockCardIntakeFixture } from "./test/fixture";
 
 function response(payload: unknown = overviewFixture) {
   return Promise.resolve(new Response(JSON.stringify(payload), { status: 200, headers: { "Content-Type": "application/json" } }));
@@ -29,9 +29,16 @@ describe("Tulina judge experience", () => {
     expect(screen.getByText(/synthetic demonstration records.*not current facility data/i)).toBeInTheDocument();
   });
 
-  test("judge next moment starts the real asynchronous ADK fleet", async () => {
+  test("judge path reads, confirms, then starts the asynchronous ADK fleet", async () => {
+    const acceptedIntake = {
+      ...stockCardIntakeFixture,
+      status: "ACCEPTED" as const,
+      accepted_by: "facility_worker",
+      accepted_at: "2026-08-15T10:01:00Z",
+    };
     const discovered = {
       ...overviewFixture,
+      stock_card_intake: acceptedIntake,
       agent_run: agentRunFixture,
       activity: [
         ...overviewFixture.activity,
@@ -45,26 +52,49 @@ describe("Tulina judge experience", () => {
         },
       ],
     };
-    let overviewCalls = 0;
+    let currentOverview = overviewFixture;
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
-      if (url.includes("/api/v1/agent-runs/watch")) return response(agentRunFixture);
-      if (url.includes("/api/v1/overview")) {
-        overviewCalls += 1;
-        return response(overviewCalls === 1 ? overviewFixture : discovered);
+      if (url.includes("/api/v1/demo/stock-card-intakes")) {
+        currentOverview = { ...overviewFixture, stock_card_intake: stockCardIntakeFixture };
+        return response(stockCardIntakeFixture);
       }
+      if (url.includes("/accept")) {
+        currentOverview = { ...overviewFixture, stock_card_intake: acceptedIntake };
+        return response(acceptedIntake);
+      }
+      if (url.includes("/api/v1/agent-runs/watch")) {
+        currentOverview = discovered;
+        return response(agentRunFixture);
+      }
+      if (url.includes("/api/v1/overview")) return response(currentOverview);
       return response();
     });
     renderAt("/judge");
-    const button = await screen.findByRole("button", { name: "Next moment" });
-    fireEvent.click(button);
+    fireEvent.click((await screen.findAllByRole("button", { name: "Read demo card" }))[0]);
+    expect(await screen.findByRole("heading", { name: "Ready for human confirmation" })).toBeInTheDocument();
+    expect(screen.getByText("60 packs")).toBeInTheDocument();
+    expect(screen.getByText("Saved fixture extraction · Gemini was not called")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm stock observation" }));
+    expect(await screen.findByText("Ready for district watch")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Next moment" }));
     await waitFor(() => expect(screen.getByText("Moment 2 of 4")).toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/api/v1/agent-runs/watch"),
-      expect.objectContaining({ method: "POST", body: expect.stringContaining('"product_id":"P05"') }),
+      expect.objectContaining({ method: "POST", body: expect.stringContaining('"trigger":"inventory_event"') }),
     );
     expect(screen.getByText("6 of 6 checks")).toBeInTheDocument();
     expect(screen.getByText("Google ADK · local")).toBeInTheDocument();
+  });
+
+  test("stock intake route exposes camera capture and review controls", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response());
+    renderAt("/intake");
+    expect(await screen.findByRole("heading", { name: "Read a stock card" })).toBeInTheDocument();
+    const input = screen.getByLabelText("Take or upload photo");
+    expect(input).toHaveAttribute("accept", "image/png,image/jpeg");
+    expect(input).toHaveAttribute("capture", "environment");
   });
 
   test("facility route presents the receiving essentials", async () => {

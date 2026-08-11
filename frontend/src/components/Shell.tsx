@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   LayoutDashboard,
   Radio,
+  ScanLine,
   Smartphone,
 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
@@ -14,6 +15,7 @@ import type { DemoRole } from "../types";
 const navigation = [
   { to: "/judge", label: "Judge Demo", icon: ClipboardCheck },
   { to: "/district", label: "District View", icon: LayoutDashboard },
+  { to: "/intake", label: "Stock intake", icon: ScanLine },
   { to: "/network", label: "Stock network", icon: Building2 },
   { to: "/facility", label: "Facility phone", icon: Smartphone },
   { to: "/audit", label: "Activity", icon: Activity },
@@ -69,7 +71,7 @@ export function Shell() {
           <Outlet />
         </main>
         <nav className="mobile-nav" aria-label="Mobile navigation">
-          {navigation.slice(0, 4).map(({ to, label, icon: Icon }) => (
+          {navigation.filter(({ to }) => ["/judge", "/intake", "/facility", "/audit"].includes(to)).map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} className={({ isActive }) => (isActive ? "active" : "")}>
               <Icon size={20} aria-hidden="true" />
               <span>{label.replace(" View", "")}</span>

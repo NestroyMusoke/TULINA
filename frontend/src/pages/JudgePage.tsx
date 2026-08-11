@@ -5,9 +5,10 @@ import { PageState } from "../components/PageState";
 import { RecommendationCard } from "../components/RecommendationCard";
 import { ActivityTimeline } from "../components/ActivityTimeline";
 import { FleetProgress } from "../components/FleetProgress";
+import { StockCardIntakeCard } from "../components/StockCardIntakeCard";
 import { useTulina } from "../state/TulinaContext";
 
-const moments = ["District picture", "Found nearby", "Approval requested", "Human approved"];
+const moments = ["Stock card read", "Found nearby", "Approval requested", "Human approved"];
 
 function inferMoment(status: string, eventTypes: string[]): number {
   if (status === "APPROVED") return 3;
@@ -17,7 +18,7 @@ function inferMoment(status: string, eventTypes: string[]): number {
 }
 
 export function JudgePage() {
-  const { overview, agentRun, busy, reset, discover, requestApproval, approve } = useTulina();
+  const { overview, agentRun, intake, busy, reset, discover, requestApproval, approve, extractDemoStockCard } = useTulina();
   const [moment, setMoment] = useState(0);
   useEffect(() => {
     if (overview) setMoment(inferMoment(overview.recommendation.status, overview.activity.map((event) => event.event_type)));
@@ -34,14 +35,28 @@ export function JudgePage() {
 
   const handleNext = async () => {
     try {
-      if (moment === 0) await discover();
+      if (moment === 0 && !intake) {
+        await extractDemoStockCard();
+        return;
+      }
+      if (moment === 0 && intake?.status === "ACCEPTED") await discover();
       if (moment === 1) await requestApproval("facility_worker");
       if (moment === 2) await approve("dho_approver");
-      setMoment((current) => Math.min(3, current + 1));
+      if (moment > 0 || intake?.status === "ACCEPTED") {
+        setMoment((current) => Math.min(3, current + 1));
+      }
     } catch {
       // Context renders the actionable error.
     }
   };
+
+  const nextLabel = moment === 3
+    ? "Approval complete"
+    : moment === 0 && !intake
+      ? "Read demo card"
+      : moment === 0 && intake?.status !== "ACCEPTED"
+        ? "Confirm card below"
+        : "Next moment";
 
   return (
     <PageState>
@@ -57,9 +72,13 @@ export function JudgePage() {
               <button className="button ghost" disabled={busy} onClick={() => void handleReset()}>
                 <RotateCcw size={16} aria-hidden="true" /> Reset demo
               </button>
-              <button className="button primary" disabled={busy || moment === 3} onClick={() => void handleNext()}>
+              <button
+                className="button primary"
+                disabled={busy || moment === 3 || (moment === 0 && Boolean(intake) && intake?.status !== "ACCEPTED")}
+                onClick={() => void handleNext()}
+              >
                 {moment === 3 ? <Check size={16} aria-hidden="true" /> : <ChevronRight size={16} aria-hidden="true" />}
-                {moment === 3 ? "Approval complete" : "Next moment"}
+                {nextLabel}
               </button>
             </div>
           </section>
@@ -79,12 +98,13 @@ export function JudgePage() {
                 <span className="eyebrow">Moment {moment + 1} of {moments.length}</span>
                 <h2>{moments[moment]}</h2>
                 <p>{[
-                  "Busiu has one pack of oxytocin—about five days of cover. Tulina is watching the whole district.",
+                  "A facility worker photographs Mbale's synthetic oxytocin stock card. Tulina reads its movements, shows the evidence, and waits for human confirmation.",
                   "The background watch finds a safe 11-pack match at Mbale and checks route, cover, expiry, level of care, and cold chain.",
                   "All five gates pass. Tulina pauses and asks the District Health Officer; no medicine can move yet.",
                   "The DHO approves as APR-DHO-001. The decision and evidence are now durable and auditable.",
                 ][moment]}</p>
               </div>
+              <StockCardIntakeCard compact />
               <FleetProgress detail={agentRun ?? overview.agent_run} />
               <RecommendationCard recommendation={overview.recommendation} />
             </div>

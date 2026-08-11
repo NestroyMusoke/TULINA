@@ -27,3 +27,9 @@ Tulina uses a Google ADK parent/child hierarchy and Runner for actual multi-agen
 ## 007 — Gemini explains validated facts only
 
 Gemini 3.5 Flash or newer creates a concise structured explanation from deterministic recommendation evidence. It never receives authority to approve, issue a Tulina Note, reconcile a receipt, or mutate medicine stock. Invalid model output fails closed.
+
+## 008 — Image interpretation is provisional until a person confirms it
+
+The Stock Intake Agent may transcribe a card, but deterministic registry and consistency checks decide whether the output is usable. Low-confidence or conflicting fields are blocked behind correction. Even a high-confidence extraction remains provisional until a facility worker accepts it; Gemini never updates inventory directly.
+
+Fixture mode recognizes only the supplied synthetic image by SHA-256 and replays a saved extraction with the same contract as live Gemini. Uploaded image bytes remain invocation-scoped and are discarded after extraction; durable records retain only the image digest and structured evidence.

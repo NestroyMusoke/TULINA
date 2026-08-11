@@ -1,14 +1,15 @@
-import type { AgentRunDetail, DemoRole, Overview } from "./types";
+import type { AgentRunDetail, DemoRole, Overview, StockCardCorrection, StockCardIntake } from "./types";
 
 const API_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, "") ?? "";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers);
+  if (init?.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
+    headers,
   });
   if (!response.ok) {
     const problem = (await response.json().catch(() => null)) as { detail?: string } | null;
@@ -28,7 +29,32 @@ export const api = {
     request<AgentRunDetail>("/api/v1/agent-runs/watch", {
       method: "POST",
       headers: roleHeaders("facility_worker"),
-      body: JSON.stringify({ recipient_facility_id: "F02", product_id: "P05", trigger: "demo" }),
+      body: JSON.stringify({ recipient_facility_id: "F02", product_id: "P05", trigger: "inventory_event" }),
+    }),
+  extractDemoStockCard: () =>
+    request<StockCardIntake>("/api/v1/demo/stock-card-intakes", {
+      method: "POST",
+      headers: roleHeaders("facility_worker"),
+    }),
+  uploadStockCard: (file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    return request<StockCardIntake>("/api/v1/stock-card-intakes", {
+      method: "POST",
+      headers: roleHeaders("facility_worker"),
+      body,
+    });
+  },
+  correctStockCard: (intakeId: string, correction: StockCardCorrection) =>
+    request<StockCardIntake>(`/api/v1/stock-card-intakes/${intakeId}`, {
+      method: "PATCH",
+      headers: roleHeaders("facility_worker"),
+      body: JSON.stringify(correction),
+    }),
+  acceptStockCard: (intakeId: string) =>
+    request<StockCardIntake>(`/api/v1/stock-card-intakes/${intakeId}/accept`, {
+      method: "POST",
+      headers: roleHeaders("facility_worker"),
     }),
   agentRun: (runId: string) =>
     request<AgentRunDetail>(`/api/v1/agent-runs/${runId}`, { headers: roleHeaders("facility_worker") }),
@@ -37,6 +63,8 @@ export const api = {
   approve: (role: DemoRole = "dho_approver") =>
     request<Overview>("/api/v1/transfers/TR-027/approve", { method: "POST", headers: roleHeaders(role) }),
 };
+
+export const demoStockCardImageUrl = `${API_URL}/api/v1/demo/stock-card-image`;
 
 export async function waitForAgentRun(
   initial: AgentRunDetail,

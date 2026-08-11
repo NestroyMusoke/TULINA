@@ -1,6 +1,6 @@
 # Tulina agent fleet
 
-Phase 3 implements a real Google ADK hierarchy that starts from an inventory event or schedule, not a chat prompt. The local demo and Google Cloud modes use the same request and run contracts.
+Phases 3–4 implement a real Google ADK hierarchy that starts from an accepted inventory event or schedule, not a chat prompt. A companion ADK intake runner handles each multimodal card before the district fleet starts. Local demo and Google Cloud modes use the same contracts.
 
 ## Runtime flow
 
@@ -35,7 +35,7 @@ sequenceDiagram
 
 | ADK agent | Tool | Durable evidence | Authority boundary |
 |---|---|---|---|
-| `stock_intake_agent` | `validate_inventory_snapshot` | source label, record count, focus stock | Phase 3 validates existing observations; image extraction arrives in Phase 4 |
+| `stock_intake_agent` | `extract_stock_card`, then `validate_inventory_snapshot` | structured observation, confidence, evidence, source label, record count | Requires correction/confirmation; cannot mutate inventory |
 | `watch_agent` | `detect_stock_signals` | need/offer counts and focus cover | Reads stock; cannot propose a donor alone |
 | `match_agent` | `rank_safe_transfers` | ranked candidates and full validated recommendation | Proposes only; cannot approve or mutate |
 | `steward_agent` | `evaluate_governance` | five policy gates and concise explanation | Blocks unsafe proposals; cannot grant human authority |
@@ -65,6 +65,6 @@ Startup rejects an unversioned model name, Gemini older than 3.5, missing live c
 - `GET /api/v1/agent-runs/latest` — latest background run for an authorized role.
 - `python -m backend.tulina.agents.cli --reset` — non-chat scheduled execution for CI and video evidence.
 
-## Honest Phase 3 limits
+## Honest current limits
 
-Live Gemini calls require credentials and are covered locally by a schema-validation adapter test, not a fabricated network response. Stock-card vision, signed Tulina Notes, Firestore persistence, Cloud Run subscribers, and production retry/quarantine policy remain in their named phases.
+Live Gemini calls require credentials and are covered locally by schema-validation adapter tests, not a fabricated network response. Fixture vision replay is bound to the supplied image digest. Signed Tulina Notes, Firestore persistence, Cloud Run subscribers, and production retry/quarantine policy remain in their named phases.

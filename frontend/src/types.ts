@@ -11,6 +11,7 @@ export type TransferStatus =
 export type DemoRole = "facility_worker" | "dho_approver" | "auditor";
 export type AgentRunStatus = "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
 export type AgentStepStatus = "RUNNING" | "COMPLETED" | "WAITING" | "FAILED";
+export type StockCardIntakeStatus = "AWAITING_REVIEW" | "NEEDS_REVIEW" | "ACCEPTED" | "REJECTED";
 
 export interface PolicyDecision {
   allowed: boolean;
@@ -136,11 +137,105 @@ export interface AgentRunDetail {
   steps: AgentStep[];
 }
 
+export interface EvidenceRegion {
+  field: string;
+  quote: string;
+  confidence: number;
+  bbox: [number, number, number, number];
+}
+
+export interface StockMovement {
+  movement_date: string;
+  reference: string;
+  batch_number: string;
+  expiry_date: string;
+  received_packs: number;
+  issued_packs: number;
+  balance_packs: number;
+  temperature_c: number;
+  remarks: string;
+}
+
+export interface StockCardExtraction {
+  schema_version: "1.0";
+  facility_name: string;
+  product_name: string;
+  stock_unit: string;
+  card_number: string;
+  scenario_date: string;
+  store_name: string;
+  storage_min_c: number;
+  storage_max_c: number;
+  on_hand_packs: number;
+  batch_number: string;
+  expiry_date: string;
+  latest_temperature_c: number;
+  redistribution_review: boolean;
+  movements: StockMovement[];
+  evidence: EvidenceRegion[];
+  overall_confidence: number;
+}
+
+export interface StockCardIntake {
+  schema_version: "1.0";
+  intake_id: string;
+  trace_id: string;
+  status: StockCardIntakeStatus;
+  provider: "fixture" | "gemini";
+  model_name: string | null;
+  gemini_called: boolean;
+  source_filename: string;
+  mime_type: "image/png" | "image/jpeg";
+  image_sha256: string;
+  image_size_bytes: number;
+  extraction: StockCardExtraction;
+  observation: {
+    facility_id: string;
+    product_id: string;
+    batch_id: string;
+    extraction: StockCardExtraction;
+  } | null;
+  required_corrections: string[];
+  corrections: Array<{
+    field: string;
+    previous_value: string;
+    corrected_value: string;
+    corrected_by: string;
+    corrected_at: string;
+  }>;
+  source_label: string;
+  error_code: string | null;
+  created_at: string;
+  updated_at: string;
+  accepted_by: string | null;
+  accepted_at: string | null;
+}
+
+export type StockCardCorrection = Partial<
+  Pick<
+    StockCardExtraction,
+    | "facility_name"
+    | "product_name"
+    | "stock_unit"
+    | "card_number"
+    | "scenario_date"
+    | "store_name"
+    | "storage_min_c"
+    | "storage_max_c"
+    | "on_hand_packs"
+    | "batch_number"
+    | "expiry_date"
+    | "latest_temperature_c"
+    | "redistribution_review"
+  >
+>;
+
 export interface Overview {
   recommendation: Recommendation;
   activity: ActivityEvent[];
   network: NetworkPosition[];
   agent_run: AgentRunDetail | null;
+  stock_card_intake: StockCardIntake | null;
   synthetic_data: boolean;
   scenario_date: string;
 }

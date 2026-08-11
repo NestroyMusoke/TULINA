@@ -336,7 +336,7 @@ FLEET_REGISTRY = (
     {
         "name": "stock_intake_agent",
         "label": "Stock Intake Agent",
-        "tool": "validate_inventory_snapshot",
+        "tool": "extract_stock_card / validate_inventory_snapshot",
         "authority": "Creates observations; never changes inventory",
     },
     {

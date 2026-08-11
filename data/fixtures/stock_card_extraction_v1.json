@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "facility_name": "Mbale Regional Referral Hospital",
+  "product_name": "Oxytocin injection 10 IU/ml",
+  "stock_unit": "Pack of 10 ampoules",
+  "card_number": "DEMO-OXY-001",
+  "scenario_date": "2026-08-15",
+  "store_name": "Main medical store",
+  "storage_min_c": 2,
+  "storage_max_c": 8,
+  "on_hand_packs": 60,
+  "batch_number": "OXY-MBL-2610A",
+  "expiry_date": "2026-10-15",
+  "latest_temperature_c": 5.3,
+  "redistribution_review": true,
+  "movements": [
+    {"movement_date":"2026-05-01","reference":"Opening","batch_number":"OXY-MBL-2707B","expiry_date":"2027-07-31","received_packs":10,"issued_packs":0,"balance_packs":10,"temperature_c":5.1,"remarks":"Verified physical count"},
+    {"movement_date":"2026-06-01","reference":"NMS-DEL-6621","batch_number":"OXY-MBL-2610A","expiry_date":"2026-10-15","received_packs":68,"issued_packs":0,"balance_packs":78,"temperature_c":4.6,"remarks":"Cold box seal intact"},
+    {"movement_date":"2026-06-30","reference":"HMIS-017-884","batch_number":"OXY-MBL-2610A","expiry_date":"2026-10-15","received_packs":0,"issued_packs":8,"balance_packs":70,"temperature_c":5.0,"remarks":"Issued to maternity"},
+    {"movement_date":"2026-07-31","reference":"HMIS-017-921","batch_number":"OXY-MBL-2610A","expiry_date":"2026-10-15","received_packs":0,"issued_packs":10,"balance_packs":60,"temperature_c":5.3,"remarks":"FEFO — review for redistribution"}
+  ],
+  "evidence": [
+    {"field":"facility_name","quote":"Mbale Regional Referral Hospital","confidence":0.99,"bbox":[0.11,0.105,0.36,0.145]},
+    {"field":"product_name","quote":"Oxytocin injection 10 IU/ml","confidence":0.99,"bbox":[0.11,0.145,0.36,0.18]},
+    {"field":"on_hand_packs","quote":"60","confidence":0.99,"bbox":[0.57,0.365,0.65,0.405]},
+    {"field":"batch_number","quote":"OXY-MBL-2610A","confidence":0.98,"bbox":[0.225,0.365,0.35,0.405]},
+    {"field":"expiry_date","quote":"2026-10-15","confidence":0.98,"bbox":[0.36,0.365,0.44,0.405]},
+    {"field":"storage_range","quote":"2–8°C; do not freeze","confidence":0.99,"bbox":[0.575,0.185,0.68,0.225]},
+    {"field":"redistribution_review","quote":"FEFO — review for redistribution","confidence":0.97,"bbox":[0.805,0.365,0.995,0.405]}
+  ],
+  "overall_confidence": 0.98
+}

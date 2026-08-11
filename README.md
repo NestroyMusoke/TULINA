@@ -25,12 +25,13 @@ Open `http://localhost:5173/judge`. Fixture mode needs no keys. Choose the visib
 - The recommendation is recalculated from imported facility, stock, consumption, route, expiry, and policy records.
 - The Judge Demo reset, discovery, approval request, and DHO approval call the FastAPI service and durable state machine.
 - A six-agent Google ADK hierarchy runs from a queued background event without a chat prompt and persists every agent/tool step.
-- Fixture mode produces a deterministic, schema-validated explanation; live mode uses Gemini 3.5 Flash through the official Google Gen AI SDK.
+- The Stock Intake Agent accepts camera/file images, invokes a validated multimodal extraction tool, displays confidence and evidence, and requires facility-worker confirmation.
+- Fixture mode faithfully replays only the supplied card by SHA-256; live mode sends image bytes to Gemini 3.5 Flash through the official Google Gen AI SDK.
 - A local durable queue and a Pub/Sub publisher adapter share the same versioned run contract.
 - District, network, facility, and audit routes render server data with clear synthetic-data labeling.
 - Approval is role-protected on the server and each change appends to a hash-chained event history.
 
-Multimodal intake, the offline Tulina Note, production governance hardening, and Google Cloud deployment remain in later phases; see [PHASES.md](PHASES.md). Fixture mode remains credential-free and never claims that Gemini was called.
+The offline Tulina Note, production governance hardening, and Google Cloud deployment remain in later phases; see [PHASES.md](PHASES.md). Fixture mode remains credential-free and never claims that Gemini was called.
 
 ## Repository map
 
@@ -62,4 +63,4 @@ python -m backend.tulina.agents.cli --database work/agent-cycle.sqlite3 --reset
 
 For live Gemini API mode, set `TULINA_MODE=gemini` and paste `GOOGLE_API_KEY` into `.env`. For Vertex AI, set `TULINA_MODE=gcp`, `GOOGLE_GENAI_USE_VERTEXAI=true`, and `GOOGLE_CLOUD_PROJECT`. Startup rejects missing credentials and Gemini models older than 3.5.
 
-See [PHASES.md](PHASES.md) for the acceptance checklist and [the agent fleet guide](docs/AGENT_FLEET.md) for the current runtime boundary.
+See [PHASES.md](PHASES.md), [the agent fleet guide](docs/AGENT_FLEET.md), and [the stock-card intake guide](docs/STOCK_CARD_INTAKE.md) for the current runtime boundary.

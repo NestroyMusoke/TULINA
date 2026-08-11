@@ -13,6 +13,6 @@ The deterministic four-minute path uses `TR-027`: Mbale Regional Referral Hospit
 
 Every moment invokes an API or offline protocol operation. “Next moment” never replaces content with a static screenshot.
 
-## Current Phase 3 rehearsal
+## Current Phase 4 rehearsal
 
-The implemented Judge Demo covers the first operational arc in four real moments: district picture, asynchronous discovery, approval request, and human approval. The first Next Moment queues a durable run and returns before Google ADK processes six agent/tool steps. The screen polls and shows Stock Intake, Watch, Match, Steward, Dispatch, and Reconciliation progress; the final two remain visibly waiting because no approval or receipt exists yet. Reset removes prior agent runs and reseeds the canonical fixture. The stock-card, signed note, offline receipt, and reconciliation moments extend this same route in Phases 4 and 5.
+The Judge Demo now starts with the supplied synthetic stock-card image. **Read demo card** invokes the real ADK Stock Intake Agent and validated extraction tool, then displays four movement rows, the 60-pack balance, early batch, expiry, cold-chain evidence, field confidence, and the provider proof. A facility worker explicitly confirms the observation; only then can the next moment publish the inventory event and run the six-agent district workflow. Reset removes both intake and agent runs before reseeding the canonical fixture. Signing, offline receipt, and reconciliation extend this route in Phase 5.

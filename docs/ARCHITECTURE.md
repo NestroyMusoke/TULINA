@@ -45,3 +45,9 @@ The Judge Demo is an orchestrated UI over real operations. Its four current mome
 FastAPI accepts a versioned watch request, persists it as `QUEUED`, returns HTTP 202, and processes local jobs after the response. The PWA polls the durable run and renders partial agent/tool progress. Pub/Sub mode publishes the same run record for a Cloud Run worker. SQLite persists authoritative job and step state; ADK's in-memory session is invocation-scoped and is not treated as the system of record.
 
 Gemini is deliberately outside the action boundary. In live mode it receives only validated recommendation facts and returns a `DecisionExplanation`; it cannot approve, dispatch, or mutate inventory. Fixture mode returns the same schema without credentials and the agent registry explicitly reports that no Gemini call occurred.
+
+## Phase 4 implementation boundary
+
+Camera and file uploads enter a dedicated ADK `stock_intake_agent`, which invokes the `extract_stock_card` function tool. The tool selects either the Gemini multimodal provider or the saved fixture provider, validates the structured result, resolves facility/product/batch IDs against registries, and persists an intake record. The ADK session is deleted after each invocation, so raw image bytes are not retained in application state; only the filename, MIME type, size, SHA-256 digest, structured extraction, evidence, and corrections remain.
+
+The fixture provider is bound to the supplied synthetic PNG digest and refuses any other image instead of pretending it performed vision. Gemini output crosses the same `RawStockCardExtraction` contract. Confidence below 0.85, missing evidence, unknown identities, ledger inconsistencies, batch/expiry conflicts, or storage-range conflicts move the record to `NEEDS_REVIEW`. A facility worker must correct those fields and explicitly accept every observation before an `inventory_event` may start the district watch.

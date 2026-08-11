@@ -6,6 +6,7 @@ The Vite/React frontend is a responsive, installable district medicine coordinat
 
 - `/judge` — deterministic four-moment walkthrough with real reset and transition calls.
 - `/district` — operational overview, recommendation, approval, metrics, and activity.
+- `/intake` — camera/file stock-card capture, evidence, correction, and human confirmation.
 - `/network` — searchable stock positions across the synthetic district fixture.
 - `/facility` — responsive Busiu receiving view for device `DEV-F02-01`.
 - `/audit` — plain-language and technical event history.

@@ -5,8 +5,9 @@ from enum import StrEnum
 from importlib.metadata import version
 from pathlib import Path
 
-from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from .agents.fleet import FLEET_REGISTRY
 from .agents.models import WatchCycleRequest
@@ -15,6 +16,11 @@ from .agents.settings import AgentSettings
 from .agents.store import AgentStoreError
 from .engine import DomainEngine
 from .fixtures import load_fixture
+from .intake.agent import StockIntakeAgentRuntime
+from .intake.models import StockCardCorrectionRequest
+from .intake.providers import build_stock_card_provider
+from .intake.service import MAX_UPLOAD_BYTES, IntakeValidationError, StockCardIntakeService
+from .intake.store import IntakeStoreError, SQLiteIntakeStore
 from .metrics import metrics_for
 from .models import TransferRecommendation, TransferStatus
 from .repository import SQLiteRepository
@@ -71,6 +77,7 @@ def create_app(
     fixture: str | Path = "data/fixtures/tulina_source_pack_v2.json",
     agent_settings: AgentSettings | None = None,
     publisher=None,
+    intake_provider=None,
 ) -> FastAPI:
     data = load_fixture(fixture)
     engine = DomainEngine(data)
@@ -87,6 +94,14 @@ def create_app(
         settings=agent_settings,
         publisher=publisher,
     )
+    intake_store = SQLiteIntakeStore(database_path)
+    intake_service = StockCardIntakeService(
+        engine=engine,
+        repository=repository,
+        store=intake_store,
+        provider=intake_provider or build_stock_card_provider(agent_settings),
+    )
+    intake_agent_runtime = StockIntakeAgentRuntime(intake_service)
 
     app = FastAPI(
         title="Tulina API",
@@ -98,18 +113,21 @@ def create_app(
     app.state.agent_service = agent_service
     app.state.agent_store = agent_service.store
     app.state.agent_settings = agent_settings
+    app.state.intake_store = intake_store
+    app.state.intake_service = intake_service
+    app.state.intake_agent_runtime = intake_agent_runtime
     allowed_origins = os.getenv("TULINA_ALLOWED_ORIGINS", "http://localhost:5173")
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[value.strip() for value in allowed_origins.split(",")],
         allow_credentials=True,
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "PATCH"],
         allow_headers=["Content-Type", "X-Tulina-Role", "X-Request-ID"],
     )
 
     @app.get("/healthz")
     def health() -> dict[str, object]:
-        return {"status": "ok", "service": "tulina-api", "mode": "fixture"}
+        return {"status": "ok", "service": "tulina-api", "mode": agent_settings.mode}
 
     @app.get("/readyz")
     def ready() -> dict[str, object]:
@@ -119,17 +137,20 @@ def create_app(
             "fixture_records": len(engine.all_positions()),
             "agent_runtime": "google-adk",
             "queue_backend": agent_service.queue.backend_name,
+            "stock_card_provider": intake_service.provider.name,
         }
 
     @app.get("/api/v1/overview")
     def overview() -> dict[str, object]:
         recommendation = repository.get_transfer("TR-027")
         latest_agent_run = agent_service.latest_detail()
+        latest_intake = intake_store.latest()
         return {
             "recommendation": _recommendation_payload(recommendation, engine),
             "activity": [row.model_dump(mode="json") for row in repository.events()][-12:],
             "network": _network_payload(engine, repository),
             "agent_run": latest_agent_run.model_dump(mode="json") if latest_agent_run else None,
+            "stock_card_intake": latest_intake.model_dump(mode="json") if latest_intake else None,
             "synthetic_data": True,
             "scenario_date": data.raw["metadata"]["scenario_date"],
         }
@@ -154,6 +175,11 @@ def create_app(
         background_tasks: BackgroundTasks,
         role: Role = Depends(require_role(Role.FACILITY_WORKER, Role.DHO_APPROVER)),
     ) -> dict[str, object]:
+        if request.trigger == "inventory_event" and intake_store.latest_accepted() is None:
+            raise HTTPException(
+                status_code=409,
+                detail="Confirm the stock-card observation before starting inventory checks",
+            )
         run = agent_service.start_watch_cycle(
             request=request, requested_by=role.value
         )
@@ -196,6 +222,100 @@ def create_app(
             "run": agent_service.detail(processed.run_id).model_dump(mode="json"),
         }
 
+    @app.get("/api/v1/demo/stock-card-image")
+    def demo_stock_card_image() -> FileResponse:
+        source = Path(fixture).parent / "stock_card_scan_demo.png"
+        if not source.exists():
+            raise HTTPException(status_code=404, detail="Demo stock card is unavailable")
+        return FileResponse(source, media_type="image/png", filename="tulina-demo-stock-card.png")
+
+    @app.post("/api/v1/demo/stock-card-intakes", status_code=201)
+    async def extract_demo_stock_card(
+        role: Role = Depends(require_role(Role.FACILITY_WORKER)),
+    ) -> dict[str, object]:
+        source = Path(fixture).parent / "stock_card_scan_demo.png"
+        if not source.exists():
+            raise HTTPException(status_code=404, detail="Demo stock card is unavailable")
+        try:
+            intake = await intake_agent_runtime.extract(
+                image_bytes=source.read_bytes(),
+                filename=source.name,
+                claimed_mime="image/png",
+                actor_id=role.value,
+            )
+        except (IntakeValidationError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return intake.model_dump(mode="json")
+
+    @app.post("/api/v1/stock-card-intakes", status_code=201)
+    async def upload_stock_card(
+        file: UploadFile = File(...),
+        role: Role = Depends(require_role(Role.FACILITY_WORKER)),
+    ) -> dict[str, object]:
+        image_bytes = await file.read(MAX_UPLOAD_BYTES + 1)
+        try:
+            intake = await intake_agent_runtime.extract(
+                image_bytes=image_bytes,
+                filename=file.filename or "stock-card",
+                claimed_mime=file.content_type,
+                actor_id=role.value,
+            )
+        except (IntakeValidationError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        finally:
+            await file.close()
+        return intake.model_dump(mode="json")
+
+    @app.get("/api/v1/stock-card-intakes/latest")
+    def latest_stock_card_intake(
+        _: Role = Depends(
+            require_role(Role.FACILITY_WORKER, Role.DHO_APPROVER, Role.AUDITOR)
+        ),
+    ) -> dict[str, object]:
+        intake = intake_store.latest()
+        if intake is None:
+            raise HTTPException(status_code=404, detail="No stock card has been read")
+        return intake.model_dump(mode="json")
+
+    @app.get("/api/v1/stock-card-intakes/{intake_id}")
+    def stock_card_intake(
+        intake_id: str,
+        _: Role = Depends(
+            require_role(Role.FACILITY_WORKER, Role.DHO_APPROVER, Role.AUDITOR)
+        ),
+    ) -> dict[str, object]:
+        try:
+            return intake_store.get(intake_id).model_dump(mode="json")
+        except IntakeStoreError as exc:
+            raise HTTPException(status_code=404, detail="Stock-card intake not found") from exc
+
+    @app.patch("/api/v1/stock-card-intakes/{intake_id}")
+    def correct_stock_card_intake(
+        intake_id: str,
+        correction: StockCardCorrectionRequest,
+        role: Role = Depends(require_role(Role.FACILITY_WORKER)),
+    ) -> dict[str, object]:
+        try:
+            intake = intake_service.correct(intake_id, correction, actor_id=role.value)
+        except IntakeStoreError as exc:
+            raise HTTPException(status_code=404, detail="Stock-card intake not found") from exc
+        except IntakeValidationError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return intake.model_dump(mode="json")
+
+    @app.post("/api/v1/stock-card-intakes/{intake_id}/accept")
+    def accept_stock_card_intake(
+        intake_id: str,
+        role: Role = Depends(require_role(Role.FACILITY_WORKER)),
+    ) -> dict[str, object]:
+        try:
+            intake = intake_service.accept(intake_id, actor_id=role.value)
+        except IntakeStoreError as exc:
+            raise HTTPException(status_code=404, detail="Stock-card intake not found") from exc
+        except IntakeValidationError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return intake.model_dump(mode="json")
+
     @app.get("/api/v1/recommendations/{transfer_id}")
     def recommendation(transfer_id: str) -> dict[str, object]:
         try:
@@ -215,6 +335,7 @@ def create_app(
     @app.post("/api/v1/demo/reset")
     def reset(_: Role = Depends(require_role(Role.DHO_APPROVER))) -> dict[str, object]:
         agent_service.store.reset()
+        intake_store.reset()
         repository.seed(engine.all_positions(), engine.recommendations(), reset=True)
         repository.record_event(
             trace_id="TRACE-TR-027",

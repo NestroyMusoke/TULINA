@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tulina.example/contracts/v1/stock-card-intake.schema.json",
+  "title": "Tulina stock-card intake",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "intake_id", "trace_id", "status", "provider", "gemini_called", "source_filename", "mime_type", "image_sha256", "image_size_bytes", "extraction", "required_corrections", "corrections", "source_label", "created_at", "updated_at"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "intake_id": {"type": "string", "pattern": "^INT-[A-F0-9]{12}$"},
+    "trace_id": {"type": "string", "minLength": 1},
+    "status": {"enum": ["AWAITING_REVIEW", "NEEDS_REVIEW", "ACCEPTED", "REJECTED"]},
+    "provider": {"enum": ["fixture", "gemini"]},
+    "model_name": {"type": ["string", "null"]},
+    "gemini_called": {"type": "boolean"},
+    "source_filename": {"type": "string", "minLength": 1},
+    "mime_type": {"enum": ["image/png", "image/jpeg"]},
+    "image_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "image_size_bytes": {"type": "integer", "minimum": 1},
+    "extraction": {"$ref": "#/$defs/extraction"},
+    "observation": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["facility_id", "product_id", "batch_id", "extraction"],
+          "properties": {
+            "facility_id": {"type": "string", "pattern": "^F[0-9]{2}$"},
+            "product_id": {"type": "string", "pattern": "^P[0-9]{2}$"},
+            "batch_id": {"type": "string", "pattern": "^BAT-"},
+            "extraction": {"$ref": "#/$defs/extraction"}
+          }
+        }
+      ]
+    },
+    "required_corrections": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "corrections": {"type": "array", "items": {"type": "object"}},
+    "source_label": {"type": "string", "minLength": 1},
+    "error_code": {"type": ["string", "null"]},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "accepted_by": {"type": ["string", "null"]},
+    "accepted_at": {"type": ["string", "null"], "format": "date-time"}
+  },
+  "$defs": {
+    "extraction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "facility_name", "product_name", "stock_unit", "card_number", "scenario_date", "store_name", "storage_min_c", "storage_max_c", "on_hand_packs", "batch_number", "expiry_date", "latest_temperature_c", "redistribution_review", "movements", "evidence", "overall_confidence"],
+      "properties": {
+        "schema_version": {"const": "1.0"},
+        "facility_name": {"type": "string", "minLength": 1},
+        "product_name": {"type": "string", "minLength": 1},
+        "stock_unit": {"type": "string", "minLength": 1},
+        "card_number": {"type": "string", "minLength": 1},
+        "scenario_date": {"type": "string", "format": "date"},
+        "store_name": {"type": "string", "minLength": 1},
+        "storage_min_c": {"type": "number"},
+        "storage_max_c": {"type": "number"},
+        "on_hand_packs": {"type": "integer", "minimum": 0},
+        "batch_number": {"type": "string", "minLength": 1},
+        "expiry_date": {"type": "string", "format": "date"},
+        "latest_temperature_c": {"type": "number"},
+        "redistribution_review": {"type": "boolean"},
+        "movements": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+        "evidence": {"type": "array", "minItems": 5, "items": {"type": "object"}},
+        "overall_confidence": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    }
+  }
+}

@@ -1,4 +1,81 @@
-import type { AgentRunDetail, Overview } from "../types";
+import type { AgentRunDetail, Overview, StockCardIntake } from "../types";
+
+export const stockCardIntakeFixture: StockCardIntake = {
+  schema_version: "1.0",
+  intake_id: "INT-ABCDEF123456",
+  trace_id: "TRACE-INTAKE-ABC123",
+  status: "AWAITING_REVIEW",
+  provider: "fixture",
+  model_name: null,
+  gemini_called: false,
+  source_filename: "stock_card_scan_demo.png",
+  mime_type: "image/png",
+  image_sha256: "3".repeat(64),
+  image_size_bytes: 245810,
+  extraction: {
+    schema_version: "1.0",
+    facility_name: "Mbale Regional Referral Hospital",
+    product_name: "Oxytocin injection 10 IU/ml",
+    stock_unit: "Pack of 10 ampoules",
+    card_number: "DEMO-OXY-001",
+    scenario_date: "2026-08-15",
+    store_name: "Main medical store",
+    storage_min_c: 2,
+    storage_max_c: 8,
+    on_hand_packs: 60,
+    batch_number: "OXY-MBL-2610A",
+    expiry_date: "2026-10-15",
+    latest_temperature_c: 5.3,
+    redistribution_review: true,
+    movements: [
+      ["2026-05-01", "Opening", 10],
+      ["2026-06-01", "NMS-DEL-6621", 78],
+      ["2026-06-30", "HMIS-017-884", 70],
+      ["2026-07-31", "HMIS-017-921", 60],
+    ].map(([movement_date, reference, balance_packs]) => ({
+      movement_date: String(movement_date),
+      reference: String(reference),
+      batch_number: "OXY-MBL-2610A",
+      expiry_date: "2026-10-15",
+      received_packs: 0,
+      issued_packs: 0,
+      balance_packs: Number(balance_packs),
+      temperature_c: 5.3,
+      remarks: "Synthetic stock movement",
+    })),
+    evidence: [
+      ["facility_name", "Mbale Regional Referral Hospital", 0.99],
+      ["product_name", "Oxytocin injection 10 IU/ml", 0.99],
+      ["on_hand_packs", "60", 0.99],
+      ["batch_number", "OXY-MBL-2610A", 0.98],
+      ["expiry_date", "2026-10-15", 0.98],
+      ["storage_range", "2–8°C; do not freeze", 0.99],
+      ["redistribution_review", "FEFO — review for redistribution", 0.97],
+    ].map(([field, quote, confidence]) => ({
+      field: String(field),
+      quote: String(quote),
+      confidence: Number(confidence),
+      bbox: [0.1, 0.1, 0.8, 0.2],
+    })),
+    overall_confidence: 0.98,
+  },
+  observation: null,
+  required_corrections: [],
+  corrections: [],
+  source_label: "Synthetic demonstration stock card — not current facility data",
+  error_code: null,
+  created_at: "2026-08-15T10:00:00Z",
+  updated_at: "2026-08-15T10:00:00Z",
+  accepted_by: null,
+  accepted_at: null,
+};
+
+stockCardIntakeFixture.observation = {
+  facility_id: "F01",
+  product_id: "P05",
+  batch_id: "BAT-F01-P05-01",
+  extraction: stockCardIntakeFixture.extraction,
+};
 
 export const agentRunFixture: AgentRunDetail = {
   run: {
@@ -55,6 +132,7 @@ export const overviewFixture: Overview = {
   synthetic_data: true,
   scenario_date: "2026-08-15",
   agent_run: null,
+  stock_card_intake: null,
   recommendation: {
     schema_version: "1.0",
     transfer_id: "TR-027",

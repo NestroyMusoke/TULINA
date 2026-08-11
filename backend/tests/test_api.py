@@ -17,6 +17,7 @@ class ApiTests(unittest.TestCase):
         self.worker = {"X-Tulina-Role": "facility_worker"}
 
     def tearDown(self) -> None:
+        self.app.state.intake_store.close()
         self.app.state.agent_store.close()
         self.app.state.repository.close()
         self.temp.cleanup()
@@ -102,6 +103,37 @@ class ApiTests(unittest.TestCase):
                 "reconciliation_agent",
             ],
         )
+
+    def test_inventory_event_waits_for_a_confirmed_stock_card(self) -> None:
+        blocked = self.client.post(
+            "/api/v1/agent-runs/watch",
+            headers=self.worker,
+            json={
+                "recipient_facility_id": "F02",
+                "product_id": "P05",
+                "trigger": "inventory_event",
+            },
+        )
+        self.assertEqual(blocked.status_code, 409)
+
+        extracted = self.client.post(
+            "/api/v1/demo/stock-card-intakes", headers=self.worker
+        ).json()
+        accepted = self.client.post(
+            f"/api/v1/stock-card-intakes/{extracted['intake_id']}/accept",
+            headers=self.worker,
+        )
+        self.assertEqual(accepted.status_code, 200)
+        started = self.client.post(
+            "/api/v1/agent-runs/watch",
+            headers=self.worker,
+            json={
+                "recipient_facility_id": "F02",
+                "product_id": "P05",
+                "trigger": "inventory_event",
+            },
+        )
+        self.assertEqual(started.status_code, 202)
 
     def test_agent_registry_is_explicit_about_fixture_mode(self) -> None:
         registry = self.client.get("/api/v1/agent-registry").json()
