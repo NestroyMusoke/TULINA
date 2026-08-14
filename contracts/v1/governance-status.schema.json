@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tulina.example/contracts/v1/governance-status.schema.json",
+  "title": "Tulina governance status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["audit_chain", "unresolved_exceptions", "exceptions", "authorization_mode", "role_permissions", "request_id", "reasoning_policy"],
+  "properties": {
+    "audit_chain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verified", "event_count", "last_sequence", "head_hash", "verified_at"],
+      "properties": {
+        "verified": {"type": "boolean"},
+        "event_count": {"type": "integer", "minimum": 0},
+        "last_sequence": {"type": "integer", "minimum": 0},
+        "head_hash": {"type": "string"},
+        "verified_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "unresolved_exceptions": {"type": "integer", "minimum": 0},
+    "exceptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["receipt_id", "transfer_id", "reason_code", "message", "resolution", "resolution_note", "resolved_by", "resolved_at"],
+        "properties": {
+          "receipt_id": {"type": "string"},
+          "transfer_id": {"type": ["string", "null"]},
+          "reason_code": {"type": "string"},
+          "message": {"type": "string"},
+          "resolution": {"enum": ["ACKNOWLEDGE_NO_MUTATION", null]},
+          "resolution_note": {"type": ["string", "null"]},
+          "resolved_by": {"type": ["string", "null"]},
+          "resolved_at": {"type": ["string", "null"], "format": "date-time"}
+        }
+      }
+    },
+    "authorization_mode": {"const": "fixture-role-headers"},
+    "role_permissions": {
+      "type": "object",
+      "required": ["facility_worker", "dho_approver", "auditor"],
+      "properties": {
+        "facility_worker": {"type": "array", "items": {"type": "string"}},
+        "dho_approver": {"type": "array", "items": {"type": "string"}},
+        "auditor": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "request_id": {"type": ["string", "null"]},
+    "reasoning_policy": {"const": "concise-decision-evidence-only"}
+  }
+}

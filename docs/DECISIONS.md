@@ -37,3 +37,11 @@ Fixture mode recognizes only the supplied synthetic image by SHA-256 and replays
 ## 009 — Offline authority is public-key verifiable, not model-dependent
 
 Tulina signs canonical note and receipt payloads with P-256 and verifies them using deterministic cryptographic libraries. The browser caches issuer public trust and owns a non-exportable device private key; Gemini and ADK never receive key material. ADK Dispatch and Reconciliation Agents invoke allowlisted signing/reconciliation tools, while the tools and durable state machine retain action authority. Local signer material is generated into ignored runtime storage; production replaces that signer with Cloud KMS.
+
+## 010 — One permission matrix, separate workflow invariants
+
+Every protected API operation maps to a named `Action` and a server-side role permission set. The state machine remains an independent second boundary: even a permitted DHO request cannot skip required transfer states. Fixture headers keep the demo credentials-free and are explicitly not presented as production authentication.
+
+## 011 — Evidence is concise, correlated, and redacted before hashing
+
+Tulina persists validated facts, named tool events, actors, status changes, and hashes—not model prompts or hidden reasoning. Request correlation is added to audit details, then sensitive keys and raw payloads are redacted before canonical hashing. Quarantine acknowledgement records human review but deliberately has no path to mutate inventory.

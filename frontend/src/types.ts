@@ -198,6 +198,12 @@ export interface StockCardIntake {
     extraction: StockCardExtraction;
   } | null;
   required_corrections: string[];
+  security_findings: Array<{
+    code: string;
+    source_field: string;
+    message: string;
+    action: string;
+  }>;
   corrections: Array<{
     field: string;
     previous_value: string;
@@ -243,6 +249,30 @@ export interface Overview {
     latest_reconciliation: ReconciliationResult | null;
     mutation_count: number;
     quarantined_count: number;
+  };
+  governance: {
+    audit_chain: {
+      verified: boolean;
+      event_count: number;
+      last_sequence: number;
+      head_hash: string;
+      verified_at: string;
+    };
+    unresolved_exceptions: number;
+    exceptions: Array<{
+      receipt_id: string;
+      transfer_id: string | null;
+      reason_code: string;
+      message: string;
+      resolution: "ACKNOWLEDGE_NO_MUTATION" | null;
+      resolution_note: string | null;
+      resolved_by: string | null;
+      resolved_at: string | null;
+    }>;
+    authorization_mode: string;
+    role_permissions: Record<DemoRole, string[]>;
+    request_id: string | null;
+    reasoning_policy: string;
   };
   synthetic_data: boolean;
   scenario_date: string;

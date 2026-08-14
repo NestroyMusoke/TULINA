@@ -178,6 +178,16 @@ export function StockCardIntakeCard({ compact = false }: { compact?: boolean }) 
           </div>
         ) : null}
 
+        {intake.security_findings.length ? (
+          <div className="security-finding" role="status">
+            <AlertTriangle size={16} aria-hidden="true" />
+            <span>
+              <strong>Instruction-like text isolated</strong>
+              Tulina kept the stock facts and isolated {intake.security_findings.length} unsafe instruction pattern{intake.security_findings.length === 1 ? "" : "s"}.
+            </span>
+          </div>
+        ) : null}
+
         <details className="intake-evidence">
           <summary>Evidence and confidence · {Math.round(extraction.overall_confidence * 100)}%</summary>
           <ul>

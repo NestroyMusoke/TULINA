@@ -4,7 +4,7 @@
   "title": "Tulina stock-card intake",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "intake_id", "trace_id", "status", "provider", "gemini_called", "source_filename", "mime_type", "image_sha256", "image_size_bytes", "extraction", "required_corrections", "corrections", "source_label", "created_at", "updated_at"],
+  "required": ["schema_version", "intake_id", "trace_id", "status", "provider", "gemini_called", "source_filename", "mime_type", "image_sha256", "image_size_bytes", "extraction", "required_corrections", "security_findings", "corrections", "source_label", "created_at", "updated_at"],
   "properties": {
     "schema_version": {"const": "1.0"},
     "intake_id": {"type": "string", "pattern": "^INT-[A-F0-9]{12}$"},
@@ -35,6 +35,20 @@
       ]
     },
     "required_corrections": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "security_findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "source_field", "message", "action"],
+        "properties": {
+          "code": {"type": "string"},
+          "source_field": {"type": "string"},
+          "message": {"type": "string"},
+          "action": {"type": "string", "pattern": "^QUARANTINED_"}
+        }
+      }
+    },
     "corrections": {"type": "array", "items": {"type": "object"}},
     "source_label": {"type": "string", "minLength": 1},
     "error_code": {"type": ["string", "null"]},

@@ -12,6 +12,7 @@ from pydantic import PrivateAttr
 
 from ..engine import DomainEngine
 from ..repository import SQLiteRepository
+from ..security import guard_generated_output, guard_tool_output
 from .models import (
     AgentStepOutcome,
     AgentStepStatus,
@@ -119,11 +120,7 @@ class RecordedToolAgent(BaseAgent):
         result = await self._tool.run_async(
             args=args, tool_context=ToolContext(ctx)
         )
-        if not isinstance(result, dict):
-            raise TypeError(f"{self._tool.name} returned a non-object result")
-        if "error" in result:
-            raise ValueError(str(result["error"]))
-        return result
+        return guard_tool_output(self._tool.name, result)
 
     @staticmethod
     def request(ctx: InvocationContext) -> WatchCycleRequest:
@@ -212,6 +209,7 @@ class StewardAgent(RecordedToolAgent):
             )
         )
         explanation = await self._dependencies.provider.explain(match.recommendation)
+        guard_generated_output(self._dependencies.provider.name, explanation)
         evidence = {
             **result.model_dump(mode="json"),
             "explanation": explanation.model_dump(mode="json"),

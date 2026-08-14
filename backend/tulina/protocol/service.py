@@ -25,6 +25,7 @@ from .models import (
     OfflineDecision,
     ProtocolSummary,
     PublicKey,
+    QuarantineCase,
     ReceiptPayload,
     ReconciliationDecision,
     ReconciliationResult,
@@ -448,6 +449,30 @@ class ProtocolService:
             mutation_count=self.repository.mutation_count(transfer_id),
             quarantined_count=self.store.quarantined_count(),
         )
+
+    def resolve_quarantine(
+        self, receipt_id: str, *, note: str, actor_id: str
+    ) -> QuarantineCase:
+        existing = next(
+            (item for item in self.store.quarantine_cases() if item.receipt_id == receipt_id),
+            None,
+        )
+        case = self.store.resolve_quarantine(
+            receipt_id, note=note, resolved_by=actor_id
+        )
+        if existing is None or existing.resolution is None:
+            self.repository.record_event(
+                trace_id=f"TRACE-{case.transfer_id or 'PROTOCOL'}",
+                actor_id=actor_id,
+                event_type="QUARANTINE_REVIEWED",
+                summary="DHO acknowledged the conflict without changing inventory",
+                details={
+                    "receipt_id": receipt_id,
+                    "resolution": case.resolution,
+                    "mutation_count": 0,
+                },
+            )
+        return case
 
     def _rejected(
         self,

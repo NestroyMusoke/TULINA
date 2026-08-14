@@ -8,6 +8,7 @@ from pathlib import Path
 from .crypto import LocalP256Signer
 from .models import (
     DeviceRegistration,
+    QuarantineCase,
     ReconciliationResult,
     SignedReceipt,
     SignedTulinaNote,
@@ -76,6 +77,13 @@ class SQLiteProtocolStore:
             );
             CREATE INDEX IF NOT EXISTS idx_protocol_results_receipt
                 ON reconciliation_results(receipt_id, sequence);
+            CREATE TABLE IF NOT EXISTS quarantine_resolutions (
+                receipt_id TEXT PRIMARY KEY,
+                resolution TEXT NOT NULL,
+                note TEXT NOT NULL,
+                resolved_by TEXT NOT NULL,
+                resolved_at TEXT NOT NULL
+            );
             """
         )
         self._connection.commit()
@@ -84,6 +92,7 @@ class SQLiteProtocolStore:
         """Reset demo protocol state while retaining the local issuer identity."""
         with self._lock, self._connection:
             self._connection.execute("DELETE FROM reconciliation_results")
+            self._connection.execute("DELETE FROM quarantine_resolutions")
             self._connection.execute("DELETE FROM consumed_nonces")
             self._connection.execute("DELETE FROM offline_receipts")
             self._connection.execute("DELETE FROM recipient_devices")
@@ -230,3 +239,70 @@ class SQLiteProtocolStore:
             "SELECT COUNT(*) AS count FROM reconciliation_results WHERE decision='QUARANTINE_CONFLICT'"
         ).fetchone()
         return int(row["count"])
+
+    def unresolved_quarantined_count(self) -> int:
+        row = self._connection.execute(
+            """SELECT COUNT(DISTINCT rr.receipt_id) AS count
+               FROM reconciliation_results rr
+               LEFT JOIN quarantine_resolutions qr ON qr.receipt_id=rr.receipt_id
+               WHERE rr.decision='QUARANTINE_CONFLICT' AND qr.receipt_id IS NULL"""
+        ).fetchone()
+        return int(row["count"])
+
+    def quarantine_cases(self) -> tuple[QuarantineCase, ...]:
+        rows = self._connection.execute(
+            """SELECT rr.payload, qr.resolution, qr.note, qr.resolved_by, qr.resolved_at
+               FROM reconciliation_results rr
+               JOIN (
+                   SELECT receipt_id, MAX(sequence) AS sequence
+                   FROM reconciliation_results
+                   WHERE decision='QUARANTINE_CONFLICT'
+                   GROUP BY receipt_id
+               ) latest ON latest.sequence=rr.sequence
+               LEFT JOIN quarantine_resolutions qr ON qr.receipt_id=rr.receipt_id
+               ORDER BY rr.sequence DESC"""
+        ).fetchall()
+        cases = []
+        for row in rows:
+            result = ReconciliationResult.model_validate_json(row["payload"])
+            if result.receipt_id is None:
+                continue
+            cases.append(
+                QuarantineCase(
+                    receipt_id=result.receipt_id,
+                    transfer_id=result.transfer_id,
+                    reason_code=result.reason_code,
+                    message=result.message,
+                    resolution=row["resolution"],
+                    resolution_note=row["note"],
+                    resolved_by=row["resolved_by"],
+                    resolved_at=(
+                        datetime.fromisoformat(row["resolved_at"])
+                        if row["resolved_at"]
+                        else None
+                    ),
+                )
+            )
+        return tuple(cases)
+
+    def resolve_quarantine(
+        self, receipt_id: str, *, note: str, resolved_by: str
+    ) -> QuarantineCase:
+        case = next(
+            (item for item in self.quarantine_cases() if item.receipt_id == receipt_id),
+            None,
+        )
+        if case is None:
+            raise ProtocolStoreError("Quarantined receipt not found")
+        if case.resolution is not None:
+            return case
+        with self._lock, self._connection:
+            self._connection.execute(
+                """INSERT INTO quarantine_resolutions(
+                       receipt_id, resolution, note, resolved_by, resolved_at
+                   ) VALUES (?, 'ACKNOWLEDGE_NO_MUTATION', ?, ?, ?)""",
+                (receipt_id, note, resolved_by, datetime.now(UTC).isoformat()),
+            )
+        return next(
+            item for item in self.quarantine_cases() if item.receipt_id == receipt_id
+        )

@@ -175,3 +175,10 @@ class AuditEvent(StrictModel):
     previous_hash: str
     event_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
     details: dict[str, object] = Field(default_factory=dict)
+
+
+class SecurityFinding(StrictModel):
+    code: str = Field(min_length=1, max_length=60)
+    source_field: str = Field(min_length=1, max_length=160)
+    message: str = Field(min_length=1, max_length=180)
+    action: str = Field(pattern=r"^QUARANTINED_")

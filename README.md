@@ -32,8 +32,9 @@ Open `http://localhost:5173/judge`. Fixture mode needs no keys. Choose the visib
 - Approval is role-protected on the server and each change appends to a hash-chained event history.
 - The ADK Dispatch Agent issues a real P-256 QR Tulina Note; the facility PWA verifies it offline with cached trust, signs a receipt with a non-exportable Web Crypto key, queues it in IndexedDB, and reconnects through the ADK Reconciliation Agent.
 - Reconciliation applies the inventory change exactly once. Duplicate upload applies zero; tampering, replay, wrong recipient, expiry, unknown issuer, malformed payload, and cloud-state conflict are rejected or quarantined by the nine canonical vectors.
+- A central server permission matrix keeps auditors read-only, request/trace IDs connect JSON logs to redacted hash-chain events, instruction-like OCR text is quarantined, and DHO exception acknowledgement is idempotent with zero stock mutation.
 
-Production governance hardening and Google Cloud deployment remain in later phases; see [PHASES.md](PHASES.md). Fixture mode remains credential-free and never claims that Gemini was called.
+Cloud identity, managed retention, KMS-backed production signing, and Google Cloud deployment remain in Phase 7; see [PHASES.md](PHASES.md). Fixture mode remains credential-free and never claims that Gemini was called.
 
 ## Repository map
 
@@ -65,4 +66,4 @@ python -m backend.tulina.agents.cli --database work/agent-cycle.sqlite3 --reset
 
 For live Gemini API mode, set `TULINA_MODE=gemini` and paste `GOOGLE_API_KEY` into `.env`. For Vertex AI, set `TULINA_MODE=gcp`, `GOOGLE_GENAI_USE_VERTEXAI=true`, and `GOOGLE_CLOUD_PROJECT`. Startup rejects missing credentials and Gemini models older than 3.5.
 
-See [PHASES.md](PHASES.md), [the agent fleet guide](docs/AGENT_FLEET.md), [the stock-card intake guide](docs/STOCK_CARD_INTAKE.md), and [the offline protocol guide](docs/OFFLINE_PROTOCOL.md) for the current runtime boundary.
+See [PHASES.md](PHASES.md), [the security model](docs/SECURITY.md), [the governance guide](docs/GOVERNANCE.md), [the observability guide](docs/OBSERVABILITY.md), [the agent fleet guide](docs/AGENT_FLEET.md), [the stock-card intake guide](docs/STOCK_CARD_INTAKE.md), and [the offline protocol guide](docs/OFFLINE_PROTOCOL.md) for the current runtime boundary.

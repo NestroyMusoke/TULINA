@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
-from ..models import StrictModel
+from ..models import SecurityFinding, StrictModel
 
 
 class StockCardIntakeStatus(StrEnum):
@@ -121,6 +121,7 @@ class StockCardIntake(StrictModel):
     extraction: RawStockCardExtraction
     observation: ValidatedStockObservation | None = None
     required_corrections: tuple[str, ...] = ()
+    security_findings: tuple[SecurityFinding, ...] = ()
     corrections: tuple[CorrectionRecord, ...] = ()
     source_label: str = "Synthetic demonstration stock card — not current facility data"
     error_code: str | None = None

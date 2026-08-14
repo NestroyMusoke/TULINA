@@ -9,7 +9,9 @@ from uuid import uuid4
 from pydantic import ValidationError
 
 from ..engine import DomainEngine
+from ..models import SecurityFinding
 from ..repository import SQLiteRepository
+from ..security import scan_untrusted_text
 from .models import (
     CorrectionRecord,
     RawStockCardExtraction,
@@ -83,7 +85,8 @@ class StockCardIntakeService:
         mime_type = _verified_mime(image_bytes, claimed_mime)
         digest = hashlib.sha256(image_bytes).hexdigest()
         result = await self.provider.extract(image_bytes, mime_type)
-        observation, issues = self._validate(result.extraction)
+        extraction, security_findings = self._quarantine_instructions(result.extraction)
+        observation, issues = self._validate(extraction)
         now = datetime.now(UTC)
         intake = StockCardIntake(
             intake_id=f"INT-{uuid4().hex[:12].upper()}",
@@ -100,9 +103,10 @@ class StockCardIntakeService:
             mime_type=mime_type,
             image_sha256=digest,
             image_size_bytes=len(image_bytes),
-            extraction=result.extraction,
+            extraction=extraction,
             observation=observation,
             required_corrections=tuple(sorted(issues)),
+            security_findings=security_findings,
             created_at=now,
             updated_at=now,
         )
@@ -124,7 +128,59 @@ class StockCardIntakeService:
                 "uploaded_by": actor_id,
             },
         )
+        if security_findings:
+            self.repository.record_event(
+                trace_id=intake.trace_id,
+                actor_id="stock_intake_agent",
+                event_type="UNTRUSTED_INSTRUCTION_QUARANTINED",
+                summary="Instruction-like stock-card text was isolated; inventory facts were preserved",
+                details={
+                    "intake_id": intake.intake_id,
+                    "finding_codes": [finding.code for finding in security_findings],
+                    "source_fields": [finding.source_field for finding in security_findings],
+                },
+            )
         return intake
+
+    @staticmethod
+    def _quarantine_instructions(
+        extraction: RawStockCardExtraction,
+    ) -> tuple[RawStockCardExtraction, tuple[SecurityFinding, ...]]:
+        findings: list[SecurityFinding] = []
+        movements = []
+        for index, movement in enumerate(extraction.movements):
+            detected = scan_untrusted_text(
+                movement.remarks, source_field=f"movements[{index}].remarks"
+            )
+            findings.extend(detected)
+            movements.append(
+                movement.model_copy(
+                    update={
+                        "remarks": (
+                            "Instruction-like text quarantined; operational facts preserved"
+                            if detected
+                            else movement.remarks
+                        )
+                    }
+                )
+            )
+        evidence = []
+        for index, item in enumerate(extraction.evidence):
+            detected = scan_untrusted_text(
+                item.quote, source_field=f"evidence[{index}].quote"
+            )
+            findings.extend(detected)
+            evidence.append(
+                item.model_copy(
+                    update={
+                        "quote": "Instruction-like text quarantined" if detected else item.quote
+                    }
+                )
+            )
+        sanitized = extraction.model_copy(
+            update={"movements": tuple(movements), "evidence": tuple(evidence)}
+        )
+        return sanitized, tuple(findings)
 
     def correct(
         self,

@@ -53,6 +53,7 @@ sequenceDiagram
 - Pub/Sub mode publishes only a versioned durable run record. Cloud Run push wiring arrives in Phase 7.
 - SQLite retains agent runs, tool steps, notes, public device registrations, receipts, nonces, reconciliation results, inventory mutations, and hash-chained audit events.
 - ADK sessions are invocation-scoped. Hidden reasoning and prompts are not durable operational state.
+- Every tool result must be an object below 128 KiB, contain no forbidden secret/prompt/reasoning fields, and pass its strict output model before becoming invocation or durable state.
 
 ## Provider modes
 
@@ -67,6 +68,8 @@ Startup rejects an unversioned or old Gemini model, missing live credentials, or
 - `GET /api/v1/agent-registry` — Google ADK version, six agents, tools, provider, model, and queue.
 - `GET /api/v1/agent-runs/{run_id}` — durable watch run and tool-step timeline.
 - `GET /api/v1/activity` — `ADK_DISPATCH_COMPLETED` and `ADK_RECONCILIATION_COMPLETED` with tool names and mutation counts.
+- `GET /api/v1/governance/status` — recomputed audit status, authorization matrix, and unresolved conflict count.
+- `GET /api/v1/audit/events` — bounded hash-chain export for DHO/auditor review.
 - `python -m backend.tulina.agents.cli --reset` — non-chat scheduled execution for CI and video evidence.
 
 ## Honest current limits

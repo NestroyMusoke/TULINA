@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import os
-from enum import StrEnum
 from importlib.metadata import version
 from pathlib import Path
 
-from fastapi import BackgroundTasks, Depends, FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -23,34 +22,14 @@ from .intake.service import MAX_UPLOAD_BYTES, IntakeValidationError, StockCardIn
 from .intake.store import IntakeStoreError, SQLiteIntakeStore
 from .metrics import metrics_for
 from .models import TransferRecommendation, TransferStatus
+from .observability import RequestContextMiddleware, current_request_id, install_problem_handlers
 from .protocol.agent import ProtocolAgentRuntime
-from .protocol.models import DeviceRegistration, ReceiptSyncRequest
+from .protocol.models import DeviceRegistration, QuarantineResolutionRequest, ReceiptSyncRequest
 from .protocol.service import ProtocolError, ProtocolService
 from .protocol.store import ProtocolStoreError, SQLiteProtocolStore
 from .repository import SQLiteRepository
+from .security import ROLE_PERMISSIONS, Action, Principal, Role, require_action
 from .state_machine import InvalidTransition, TransitionContext
-
-
-class Role(StrEnum):
-    FACILITY_WORKER = "facility_worker"
-    DHO_APPROVER = "dho_approver"
-    AUDITOR = "auditor"
-
-
-def require_role(*allowed: Role):
-    def dependency(x_tulina_role: str | None = Header(default=None)) -> Role:
-        try:
-            role = Role(x_tulina_role or "")
-        except ValueError as exc:
-            raise HTTPException(status_code=401, detail="Choose a valid Tulina demo role") from exc
-        if role not in allowed:
-            raise HTTPException(
-                status_code=403,
-                detail=f"The {role.value} role cannot perform this action",
-            )
-        return role
-
-    return dependency
 
 
 def _recommendation_payload(
@@ -132,8 +111,11 @@ def create_app(
         allow_origins=[value.strip() for value in allowed_origins.split(",")],
         allow_credentials=True,
         allow_methods=["GET", "POST", "PATCH"],
-        allow_headers=["Content-Type", "X-Tulina-Role", "X-Request-ID"],
+        allow_headers=["Content-Type", "X-Tulina-Role", "X-Tulina-Actor", "X-Request-ID"],
+        expose_headers=["X-Request-ID", "X-Trace-ID"],
     )
+    app.add_middleware(RequestContextMiddleware)
+    install_problem_handlers(app)
 
     @app.get("/healthz")
     def health() -> dict[str, object]:
@@ -163,6 +145,7 @@ def create_app(
             "agent_run": latest_agent_run.model_dump(mode="json") if latest_agent_run else None,
             "stock_card_intake": latest_intake.model_dump(mode="json") if latest_intake else None,
             "protocol": protocol_service.summary().model_dump(mode="json"),
+            "governance": _governance_payload(repository, protocol_store),
             "synthetic_data": True,
             "scenario_date": data.raw["metadata"]["scenario_date"],
         }
@@ -185,7 +168,7 @@ def create_app(
     def start_watch_cycle(
         request: WatchCycleRequest,
         background_tasks: BackgroundTasks,
-        role: Role = Depends(require_role(Role.FACILITY_WORKER, Role.DHO_APPROVER)),
+        principal: Principal = Depends(require_action(Action.START_WATCH)),
     ) -> dict[str, object]:
         if request.trigger == "inventory_event" and intake_store.latest_accepted() is None:
             raise HTTPException(
@@ -193,7 +176,7 @@ def create_app(
                 detail="Confirm the stock-card observation before starting inventory checks",
             )
         run = agent_service.start_watch_cycle(
-            request=request, requested_by=role.value
+            request=request, requested_by=principal.actor_id
         )
         if agent_service.queue.backend_name == "local":
             background_tasks.add_task(agent_service.process_next)
@@ -201,9 +184,7 @@ def create_app(
 
     @app.get("/api/v1/agent-runs/latest")
     def latest_agent_run(
-        _: Role = Depends(
-            require_role(Role.FACILITY_WORKER, Role.DHO_APPROVER, Role.AUDITOR)
-        ),
+        _: Principal = Depends(require_action(Action.READ_TECHNICAL)),
     ) -> dict[str, object]:
         latest = agent_service.latest_detail()
         if latest is None:
@@ -213,9 +194,7 @@ def create_app(
     @app.get("/api/v1/agent-runs/{run_id}")
     def agent_run(
         run_id: str,
-        _: Role = Depends(
-            require_role(Role.FACILITY_WORKER, Role.DHO_APPROVER, Role.AUDITOR)
-        ),
+        _: Principal = Depends(require_action(Action.READ_TECHNICAL)),
     ) -> dict[str, object]:
         try:
             return agent_service.detail(run_id).model_dump(mode="json")
@@ -224,7 +203,7 @@ def create_app(
 
     @app.post("/api/v1/agent-worker/process-next")
     async def process_next_agent_run(
-        _: Role = Depends(require_role(Role.DHO_APPROVER, Role.AUDITOR)),
+        _: Principal = Depends(require_action(Action.PROCESS_QUEUE)),
     ) -> dict[str, object]:
         processed = await agent_service.process_next()
         if processed is None:
@@ -243,7 +222,7 @@ def create_app(
 
     @app.post("/api/v1/demo/stock-card-intakes", status_code=201)
     async def extract_demo_stock_card(
-        role: Role = Depends(require_role(Role.FACILITY_WORKER)),
+        principal: Principal = Depends(require_action(Action.RECORD_STOCK)),
     ) -> dict[str, object]:
         source = Path(fixture).parent / "stock_card_scan_demo.png"
         if not source.exists():
@@ -253,7 +232,7 @@ def create_app(
                 image_bytes=source.read_bytes(),
                 filename=source.name,
                 claimed_mime="image/png",
-                actor_id=role.value,
+                actor_id=principal.actor_id,
             )
         except (IntakeValidationError, ValueError) as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -262,7 +241,7 @@ def create_app(
     @app.post("/api/v1/stock-card-intakes", status_code=201)
     async def upload_stock_card(
         file: UploadFile = File(...),
-        role: Role = Depends(require_role(Role.FACILITY_WORKER)),
+        principal: Principal = Depends(require_action(Action.RECORD_STOCK)),
     ) -> dict[str, object]:
         image_bytes = await file.read(MAX_UPLOAD_BYTES + 1)
         try:
@@ -270,7 +249,7 @@ def create_app(
                 image_bytes=image_bytes,
                 filename=file.filename or "stock-card",
                 claimed_mime=file.content_type,
-                actor_id=role.value,
+                actor_id=principal.actor_id,
             )
         except (IntakeValidationError, ValueError) as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -280,9 +259,7 @@ def create_app(
 
     @app.get("/api/v1/stock-card-intakes/latest")
     def latest_stock_card_intake(
-        _: Role = Depends(
-            require_role(Role.FACILITY_WORKER, Role.DHO_APPROVER, Role.AUDITOR)
-        ),
+        _: Principal = Depends(require_action(Action.READ_TECHNICAL)),
     ) -> dict[str, object]:
         intake = intake_store.latest()
         if intake is None:
@@ -292,9 +269,7 @@ def create_app(
     @app.get("/api/v1/stock-card-intakes/{intake_id}")
     def stock_card_intake(
         intake_id: str,
-        _: Role = Depends(
-            require_role(Role.FACILITY_WORKER, Role.DHO_APPROVER, Role.AUDITOR)
-        ),
+        _: Principal = Depends(require_action(Action.READ_TECHNICAL)),
     ) -> dict[str, object]:
         try:
             return intake_store.get(intake_id).model_dump(mode="json")
@@ -305,10 +280,10 @@ def create_app(
     def correct_stock_card_intake(
         intake_id: str,
         correction: StockCardCorrectionRequest,
-        role: Role = Depends(require_role(Role.FACILITY_WORKER)),
+        principal: Principal = Depends(require_action(Action.RECORD_STOCK)),
     ) -> dict[str, object]:
         try:
-            intake = intake_service.correct(intake_id, correction, actor_id=role.value)
+            intake = intake_service.correct(intake_id, correction, actor_id=principal.actor_id)
         except IntakeStoreError as exc:
             raise HTTPException(status_code=404, detail="Stock-card intake not found") from exc
         except IntakeValidationError as exc:
@@ -318,10 +293,10 @@ def create_app(
     @app.post("/api/v1/stock-card-intakes/{intake_id}/accept")
     def accept_stock_card_intake(
         intake_id: str,
-        role: Role = Depends(require_role(Role.FACILITY_WORKER)),
+        principal: Principal = Depends(require_action(Action.RECORD_STOCK)),
     ) -> dict[str, object]:
         try:
-            intake = intake_service.accept(intake_id, actor_id=role.value)
+            intake = intake_service.accept(intake_id, actor_id=principal.actor_id)
         except IntakeStoreError as exc:
             raise HTTPException(status_code=404, detail="Stock-card intake not found") from exc
         except IntakeValidationError as exc:
@@ -341,11 +316,11 @@ def create_app(
         return {"positions": _network_payload(engine, repository), "synthetic_data": True}
 
     @app.get("/api/v1/activity")
-    def activity(_: Role = Depends(require_role(Role.DHO_APPROVER, Role.AUDITOR))):
+    def activity(_: Principal = Depends(require_action(Action.READ_AUDIT))):
         return {"events": [row.model_dump(mode="json") for row in repository.events()]}
 
     @app.post("/api/v1/demo/reset")
-    def reset(_: Role = Depends(require_role(Role.DHO_APPROVER))) -> dict[str, object]:
+    def reset(_: Principal = Depends(require_action(Action.RESET_DEMO))) -> dict[str, object]:
         agent_service.store.reset()
         intake_store.reset()
         protocol_store.reset()
@@ -361,20 +336,20 @@ def create_app(
 
     @app.post("/api/v1/demo/discover")
     async def discover(
-        _: Role = Depends(require_role(Role.FACILITY_WORKER, Role.DHO_APPROVER)),
+        principal: Principal = Depends(require_action(Action.START_WATCH)),
     ) -> dict[str, object]:
         current = repository.get_transfer("TR-027")
         if current.status != TransferStatus.FOUND:
             raise HTTPException(status_code=409, detail="Reset the demo before discovery")
         agent_service.start_watch_cycle(
-            request=WatchCycleRequest(), requested_by=Role.FACILITY_WORKER.value
+            request=WatchCycleRequest(), requested_by=principal.actor_id
         )
         await agent_service.process_next()
         return overview()
 
     @app.post("/api/v1/transfers/TR-027/request-approval")
     def request_approval(
-        _: Role = Depends(require_role(Role.FACILITY_WORKER, Role.DHO_APPROVER)),
+        _: Principal = Depends(require_action(Action.REQUEST_APPROVAL)),
     ) -> dict[str, object]:
         try:
             repository.change_status(
@@ -391,13 +366,15 @@ def create_app(
         return overview()
 
     @app.post("/api/v1/transfers/TR-027/approve")
-    def approve(_: Role = Depends(require_role(Role.DHO_APPROVER))) -> dict[str, object]:
+    def approve(
+        principal: Principal = Depends(require_action(Action.APPROVE_TRANSFER)),
+    ) -> dict[str, object]:
         try:
             repository.change_status(
                 "TR-027",
                 TransferStatus.APPROVED,
                 TransitionContext(
-                    actor_id="APR-DHO-001",
+                    actor_id=principal.actor_id,
                     actor_role=Role.DHO_APPROVER.value,
                     reason="District Health Officer approved 11 transfer packs",
                 ),
@@ -408,14 +385,14 @@ def create_app(
 
     @app.get("/api/v1/trust-bundle")
     def trust_bundle(
-        _: Role = Depends(require_role(Role.FACILITY_WORKER, Role.DHO_APPROVER, Role.AUDITOR)),
+        _: Principal = Depends(require_action(Action.READ_TECHNICAL)),
     ) -> dict[str, object]:
         return protocol_service.trust_bundle().model_dump(mode="json")
 
     @app.post("/api/v1/devices/register")
     def register_device(
         registration: DeviceRegistration,
-        _: Role = Depends(require_role(Role.FACILITY_WORKER)),
+        _: Principal = Depends(require_action(Action.REGISTER_DEVICE)),
     ) -> dict[str, object]:
         try:
             saved = protocol_service.register_device(registration)
@@ -424,16 +401,18 @@ def create_app(
         return saved.model_dump(mode="json")
 
     @app.post("/api/v1/transfers/TR-027/issue-note")
-    async def issue_note(_: Role = Depends(require_role(Role.DHO_APPROVER))) -> dict[str, object]:
+    async def issue_note(
+        principal: Principal = Depends(require_action(Action.ISSUE_NOTE)),
+    ) -> dict[str, object]:
         try:
-            await protocol_agent_runtime.issue("TR-027", Role.DHO_APPROVER.value)
+            await protocol_agent_runtime.issue("TR-027", principal.actor_id)
         except ProtocolError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return overview()
 
     @app.get("/api/v1/transfers/TR-027/note")
     def get_note(
-        _: Role = Depends(require_role(Role.FACILITY_WORKER, Role.DHO_APPROVER, Role.AUDITOR)),
+        _: Principal = Depends(require_action(Action.READ_TECHNICAL)),
     ) -> dict[str, object]:
         note = protocol_store.note_for_transfer("TR-027")
         if note is None:
@@ -443,10 +422,50 @@ def create_app(
     @app.post("/api/v1/receipts/reconcile")
     async def reconcile_receipt(
         request: ReceiptSyncRequest,
-        role: Role = Depends(require_role(Role.FACILITY_WORKER)),
+        principal: Principal = Depends(require_action(Action.RECONCILE_RECEIPT)),
     ) -> dict[str, object]:
-        result = await protocol_agent_runtime.reconcile(request.receipt_token, role.value)
+        result = await protocol_agent_runtime.reconcile(request.receipt_token, principal.actor_id)
         return result.model_dump(mode="json")
+
+    @app.get("/api/v1/audit/events")
+    def audit_events(
+        trace_id: str | None = None,
+        limit: int = Query(default=100, ge=1, le=500),
+        _: Principal = Depends(require_action(Action.READ_AUDIT)),
+    ) -> dict[str, object]:
+        rows = repository.events(trace_id)
+        return {
+            "events": [row.model_dump(mode="json") for row in rows[-limit:]],
+            "audit_chain": repository.audit_status(),
+        }
+
+    @app.get("/api/v1/governance/status")
+    def governance_status(
+        _: Principal = Depends(require_action(Action.READ_AUDIT)),
+    ) -> dict[str, object]:
+        return _governance_payload(repository, protocol_store)
+
+    @app.get("/api/v1/exceptions")
+    def exceptions(
+        _: Principal = Depends(require_action(Action.READ_AUDIT)),
+    ) -> dict[str, object]:
+        return {
+            "cases": [row.model_dump(mode="json") for row in protocol_store.quarantine_cases()]
+        }
+
+    @app.post("/api/v1/exceptions/{receipt_id}/resolve")
+    def resolve_exception(
+        receipt_id: str,
+        request: QuarantineResolutionRequest,
+        principal: Principal = Depends(require_action(Action.RESOLVE_EXCEPTION)),
+    ) -> dict[str, object]:
+        try:
+            case = protocol_service.resolve_quarantine(
+                receipt_id, note=request.note, actor_id=principal.actor_id
+            )
+        except ProtocolStoreError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return case.model_dump(mode="json")
 
     return app
 
@@ -473,6 +492,23 @@ def _network_payload(engine: DomainEngine, repository: SQLiteRepository) -> list
             }
         )
     return rows
+
+
+def _governance_payload(
+    repository: SQLiteRepository, protocol_store: SQLiteProtocolStore
+) -> dict[str, object]:
+    return {
+        "audit_chain": repository.audit_status(),
+        "unresolved_exceptions": protocol_store.unresolved_quarantined_count(),
+        "exceptions": [row.model_dump(mode="json") for row in protocol_store.quarantine_cases()],
+        "authorization_mode": "fixture-role-headers",
+        "role_permissions": {
+            role.value: sorted(action.value for action in actions)
+            for role, actions in ROLE_PERMISSIONS.items()
+        },
+        "request_id": current_request_id(),
+        "reasoning_policy": "concise-decision-evidence-only",
+    }
 
 
 app = create_app()

@@ -334,6 +334,10 @@ td span { margin-top: 2px; color: var(--muted); font-size: 9px; }
 .correction-warning svg { flex: 0 0 auto; }
 .correction-warning span, .correction-warning strong { display: block; font-size: 9px; }
 .correction-warning strong { margin-bottom: 2px; }
+.security-finding { margin: 0 20px 12px; padding: 9px 10px; display: flex; gap: 8px; color: #684f11; background: #f8f0d7; border: 1px solid #c8a954; border-radius: 6px; }
+.security-finding svg { flex: 0 0 auto; }
+.security-finding span, .security-finding strong { display: block; font-size: 9px; }
+.security-finding strong { margin-bottom: 2px; }
 .intake-evidence, .intake-correction { border-top: 1px solid var(--line); }
 .intake-evidence summary, .intake-correction summary { padding: 11px 20px; color: var(--green); cursor: pointer; font-size: 9px; font-weight: 700; }
 .intake-correction summary { display: flex; align-items: center; gap: 5px; }
@@ -366,6 +370,18 @@ td span { margin-top: 2px; color: var(--muted); font-size: 9px; }
 .audit-records dt { color: var(--muted); font-size: 9px; }
 .audit-records dd { margin: 0; font-size: 9px; overflow-wrap: anywhere; }
 .audit-records code { font-size: 9px; }
+.chain-status.failed { background: #fff0e4; color: var(--danger); }
+.governance-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0 24px; }
+.governance-grid article { display: flex; gap: 12px; padding: 15px; border: 1px solid var(--line); border-radius: 8px; background: var(--white); }
+.governance-grid article > svg { flex: none; color: var(--green); }
+.governance-grid article.needs-review > svg { color: var(--danger); }
+.governance-grid article div { display: grid; gap: 3px; min-width: 0; }
+.governance-grid article span, .governance-grid article small { color: var(--muted); font-size: 9px; }
+.governance-grid article strong { font-size: 11px; overflow-wrap: anywhere; }
+.authority-matrix { margin-top: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.authority-matrix summary { padding: 13px 15px; cursor: pointer; font-size: 11px; font-weight: 700; }
+.authority-matrix div { padding: 0 15px 12px; }
+.authority-matrix p { margin: 7px 0; color: var(--muted); font-size: 10px; }
 
 @media (max-width: 1050px) {
   .app-shell { grid-template-columns: 78px minmax(0,1fr); }
@@ -396,7 +412,7 @@ td span { margin-top: 2px; color: var(--muted); font-size: 9px; }
   .hero-grid { grid-template-columns: 1fr; }
   .hero-copy h1 { font-size: 44px; }
   .district-stamp { display: none; }
-  .content-grid, .judge-story-grid, .audit-grid { grid-template-columns: 1fr; }
+  .content-grid, .judge-story-grid, .audit-grid, .governance-grid { grid-template-columns: 1fr; }
   .impact-column { display: block; }
   .impact-cards { grid-template-columns: 1fr; }
   .assurance-note { grid-column: auto; }

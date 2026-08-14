@@ -9,6 +9,8 @@ from pathlib import Path
 from uuid import uuid4
 
 from .models import AuditEvent, StockPosition, TransferRecommendation, TransferStatus
+from .observability import audit_context
+from .security import sanitize_audit_details
 from .state_machine import TransitionContext, transition
 
 
@@ -299,6 +301,21 @@ class SQLiteRepository:
         rows = self._connection.execute(query, args).fetchall()
         return tuple(self._event_from_row(row) for row in rows)
 
+    def audit_status(self) -> dict[str, object]:
+        row = self._connection.execute(
+            "SELECT COUNT(*) AS count, MAX(sequence) AS last_sequence FROM audit_events"
+        ).fetchone()
+        head = self._connection.execute(
+            "SELECT event_hash FROM audit_events ORDER BY sequence DESC LIMIT 1"
+        ).fetchone()
+        return {
+            "verified": self.verify_audit_chain(),
+            "event_count": int(row["count"]),
+            "last_sequence": int(row["last_sequence"] or 0),
+            "head_hash": head["event_hash"] if head else "GENESIS",
+            "verified_at": datetime.now(UTC).isoformat(),
+        }
+
     def record_event(
         self,
         *,
@@ -360,6 +377,7 @@ class SQLiteRepository:
         summary: str,
         details: dict[str, object],
     ) -> AuditEvent:
+        safe_details = sanitize_audit_details({**details, **audit_context()})
         previous_row = self._connection.execute(
             "SELECT event_hash FROM audit_events ORDER BY sequence DESC LIMIT 1"
         ).fetchone()
@@ -372,7 +390,7 @@ class SQLiteRepository:
             actor_id=actor_id,
             event_type=event_type,
             summary=summary,
-            details=details,
+            details=safe_details,
         )
         event_id = f"EVT-{uuid4().hex[:12].upper()}"
         cursor = self._connection.execute(
@@ -389,7 +407,7 @@ class SQLiteRepository:
                 summary,
                 previous_hash,
                 event_hash,
-                json.dumps(details, sort_keys=True, separators=(",", ":")),
+                json.dumps(safe_details, sort_keys=True, separators=(",", ":")),
             ),
         )
         return AuditEvent(
@@ -402,7 +420,7 @@ class SQLiteRepository:
             summary=summary,
             previous_hash=previous_hash,
             event_hash=event_hash,
-            details=details,
+            details=safe_details,
         )
 
     @staticmethod

@@ -10,7 +10,8 @@ Phase 4 turns a camera/file image into a provisional stock observation. It is an
 4. Pydantic validates the full header, four-or-more movement records, current balance, batch, expiry, storage, evidence regions, and confidence.
 5. Deterministic code resolves facility, product, and batch IDs and checks final-balance, expiry, storage, evidence, and confidence invariants.
 6. Uncertain records become `NEEDS_REVIEW`; corrections preserve previous and corrected values in the durable record and audit chain.
-7. A facility worker confirms the observation. Only an `ACCEPTED` record can trigger an inventory-event watch cycle.
+7. Instruction-like OCR remarks are quarantined and audited before they can enter an agent or tool instruction boundary; the separately validated inventory facts remain visible.
+8. A facility worker confirms the observation. Only an `ACCEPTED` record can trigger an inventory-event watch cycle.
 
 Raw image bytes are never written to SQLite. The durable record contains the source filename, MIME type, byte count, SHA-256, structured facts, evidence, corrections, provider/model proof, and timestamps.
 

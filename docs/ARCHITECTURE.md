@@ -57,3 +57,11 @@ The fixture provider is bound to the supplied synthetic PNG digest and refuses a
 Dispatch and reconciliation are dedicated real ADK agent invocations over validated function tools. Models never sign, approve, verify, or mutate medicine. `ProtocolService` owns canonical encoding, P-256 checks, identity binding, replay decisions, and reconciliation; `SQLiteProtocolStore` persists local issuer identity, notes, registered public device keys, receipts, consumed nonces, and outcomes.
 
 The facility PWA caches only public issuer trust in IndexedDB and keeps its non-exportable Web Crypto private key locally. Offline scanning uses Web Crypto and a local nonce set without calling FastAPI or Gemini. Reconnection uploads the signed receipt; the repository transaction and idempotency ledger apply at most one inventory mutation. A cloud-state conflict is quarantined instead of merged.
+
+## Phase 6 implementation boundary
+
+FastAPI now enforces a central role-to-action permission matrix. Request middleware validates or creates correlation IDs, returns them to clients, emits body-free structured JSON logs, and binds request correlation to hash-chained business events. Problem responses are stable and carry a request reference without returning stack traces.
+
+Audit details pass through recursive secret/raw-input redaction before hashing. The server recomputes chain status for readiness and the Audit view. OCR remarks are scanned as untrusted content and instruction-like text is isolated while inventory facts remain under deterministic and human checks. Every ADK tool result passes an allowlisted size/key boundary and strict model validation before it becomes state.
+
+Quarantined cloud/edge conflicts have a durable, DHO-only `ACKNOWLEDGE_NO_MUTATION` resolution. Auditors are read-only, repeated resolutions are idempotent, and recovery never creates a second inventory write. `docs/SECURITY.md`, `docs/GOVERNANCE.md`, and `docs/OBSERVABILITY.md` define the controls and honest local-mode limits.

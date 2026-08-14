@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -151,3 +152,19 @@ class ProtocolSummary(ProtocolModel):
     latest_reconciliation: ReconciliationResult | None
     mutation_count: int
     quarantined_count: int
+
+
+class QuarantineResolutionRequest(ProtocolModel):
+    action: Literal["ACKNOWLEDGE_NO_MUTATION"] = "ACKNOWLEDGE_NO_MUTATION"
+    note: str = Field(min_length=3, max_length=500)
+
+
+class QuarantineCase(ProtocolModel):
+    receipt_id: str
+    transfer_id: str | None
+    reason_code: str
+    message: str
+    resolution: Literal["ACKNOWLEDGE_NO_MUTATION"] | None = None
+    resolution_note: str | None = None
+    resolved_by: str | None = None
+    resolved_at: datetime | None = None

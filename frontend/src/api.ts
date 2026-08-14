@@ -13,8 +13,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers,
   });
   if (!response.ok) {
-    const problem = (await response.json().catch(() => null)) as { detail?: string } | null;
-    throw new Error(problem?.detail ?? `Tulina service returned ${response.status}`);
+    const problem = (await response.json().catch(() => null)) as { detail?: string; request_id?: string } | null;
+    const message = problem?.detail ?? `Tulina service returned ${response.status}`;
+    throw new Error(problem?.request_id ? `${message} · Reference ${problem.request_id}` : message);
   }
   return (await response.json()) as T;
 }

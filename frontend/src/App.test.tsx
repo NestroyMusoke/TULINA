@@ -109,4 +109,20 @@ describe("Tulina judge experience", () => {
       ),
     ).toBeInTheDocument();
   });
+
+  test("audit view reports server verification instead of assuming a valid chain", async () => {
+    const failedAudit = {
+      ...overviewFixture,
+      governance: {
+        ...overviewFixture.governance,
+        audit_chain: { ...overviewFixture.governance.audit_chain, verified: false },
+        unresolved_exceptions: 1,
+      },
+    };
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response(failedAudit));
+    renderAt("/audit");
+    expect(await screen.findByText("Chain needs review")).toBeInTheDocument();
+    expect(screen.getByText("1 needs human review")).toBeInTheDocument();
+    expect(screen.queryByText("Chain verified")).not.toBeInTheDocument();
+  });
 });

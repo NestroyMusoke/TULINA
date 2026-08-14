@@ -6,7 +6,7 @@
 - [x] Phase 3 — Google ADK/Gemini asynchronous fleet
 - [x] Phase 4 — multimodal stock-card intake
 - [x] Phase 5 — offline Tulina Note protocol and nine vectors
-- [ ] Phase 6 — security, governance, auditability, observability
+- [x] Phase 6 — security, governance, auditability, observability
 - [ ] Phase 7 — Google Cloud deployment artifacts
 - [ ] Phase 8 — full hardening, E2E, submission documentation
 
