@@ -45,3 +45,5 @@ The Audit view recomputes server evidence through the overview response; it does
 Acknowledging a quarantine never retries or mutates inventory. A future corrective medicine move must begin as a new governed transfer.
 
 Phase 7 configures Cloud Run startup/liveness probes on `/healthz`; the deployment verifier separately requires `/readyz` to prove Firestore reachability and chain integrity. `infra/gcp/verify.ps1` also prints the active Google ADK/Gemini registry and a bounded Cloud Logging query for video evidence.
+
+Phase 8 browser proof connects the human story to the same evidence: the final Activity view must show `DUPLICATE_RECEIPT_RETRY` and `OFFLINE_NOTE_REJECTED` while the server-recomputed audit chain remains valid. Playwright failure traces/screenshots are local ignored artifacts and must be reviewed before sharing.

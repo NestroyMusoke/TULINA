@@ -65,6 +65,10 @@ Tulina never asks a model for chain-of-thought. Durable records contain concise 
 
 A Tulina Note binds issuer, donor, recipient, product, batch, quantity, approval, issuance, expiry, and one-use nonce. Offline verification checks parsing, trusted issuer, signature, recipient, validity window, and local replay before queuing a signed device receipt. Reconciliation repeats trust and identity checks, validates cloud workflow state, and applies inventory and delivery status in one idempotent transaction. See `docs/OFFLINE_PROTOCOL.md` for the nine canonical vectors.
 
+### Offline rejection reporting
+
+The receiving phone rejects tampered, expired, replayed, wrong-recipient, untrusted-issuer, or unreadable notes locally before receipt creation. When connectivity is available it may upload only a strict `offline-verification-report` containing IDs, an allowlisted reason code, decision, device, and timestamp. The worker role is required; extra fields and invented reason codes fail validation. The audit record explicitly labels this as recipient-device evidence, includes zero stock mutations, and never contains the QR payload, canonical signed content, or signature.
+
 ## Audit assurance and honest limits
 
 Local audit is **tamper-evident**, not an append-only infrastructure guarantee: an attacker with database write access could rewrite every event and recompute the chain. Firestore transactions protect sequence/head consistency, and Phase 7 adds least-privilege storage access, KMS signing, and centralized Cloud Logging, but an identity with unrestricted datastore write access could still rewrite history. Workforce authentication, managed retention/alerts, and independent audit export remain pilot hardening work and are not fabricated in fixture mode.

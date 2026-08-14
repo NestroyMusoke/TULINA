@@ -73,3 +73,11 @@ Quarantined cloud/edge conflicts have a durable, DHO-only `ACKNOWLEDGE_NO_MUTATI
 `TULINA_QUEUE=pubsub` publishes a validated durable `AgentRun`. Pub/Sub pushes an OIDC-authenticated envelope to the internal worker route; the API verifies audience, service-account email, schema, trace identity, and immutable run fields before claiming the Firestore run. Redelivery of a completed run is acknowledged without rerunning it.
 
 Cloud KMS signs a SHA-256 digest using `EC_SIGN_P256_SHA256`. The adapter verifies response identity/CRC32C, converts the DER signature to the browser protocol's 64-byte P1363 form, and exposes only the public JWK. Two non-root containers deploy independently to Cloud Run with startup/liveness probes, scale-to-zero limits, structured Cloud Logging, and separate service identities. See `docs/DEPLOYMENT_GCP.md` and `docs/IAM_GCP.md`.
+
+## Phase 8 implementation boundary
+
+Playwright drives the canonical `TR-027` journey against the real FastAPI service and PWA in fixture mode. It proves the stock-card gate, six persisted ADK steps, DHO authority, P-256 note issuance, zero API calls during offline receiving, IndexedDB receipt persistence, reconnect reconciliation, exactly one mutation, duplicate zero, tamper rejection, and the final hash-chained audit record. Separate browser checks cover failure/retry behavior, axe accessibility on the district/facility/audit routes, and 390 px phone overflow.
+
+CI installs an isolated Chromium runtime after the backend and frontend gates pass. The local Windows runner may use installed Chrome and manages API/Vite processes explicitly. Release verification also rejects high-confidence secrets and enforces raw production budgets of 1 MB JavaScript, 100 KB CSS, and 15 KB HTML. These are regression budgets, not claims about network performance on a particular Ugandan connection.
+
+The final architecture is available as this Mermaid source and as `docs/architecture.svg`. Credentialed proof remains deliberately separate: `infra/gcp/verify.ps1` must show the real Cloud Run URLs, Gemini provider, Firestore, Pub/Sub, and KMS state before those claims enter the video.

@@ -7,12 +7,12 @@
   --paper: #f3f0e8;
   --paper-light: #fbfaf5;
   --ink: #23332f;
-  --muted: #68746f;
+  --muted: #56635e;
   --line: #d9d5c9;
   --green: #173e35;
   --green-mid: #2f6656;
   --green-soft: #dfe9df;
-  --rust: #b75b3f;
+  --rust: #98452f;
   --rust-soft: #f2dfd6;
   --gold: #c99539;
   --gold-soft: #f3e8c9;
@@ -139,7 +139,7 @@ p { line-height: 1.65; color: var(--muted); }
 .timeline-heading strong { font-size: 12px; text-transform: capitalize; }
 .timeline-heading time { color: var(--muted); font-size: 9px; }
 .timeline-item p { margin: 3px 0 1px; font-size: 11px; line-height: 1.45; }
-.timeline-item > div > span { color: #8a928e; font-size: 9px; }
+.timeline-item > div > span { color: var(--muted); font-size: 9px; }
 .data-disclaimer { margin: 18px 0 0; text-align: center; font-size: 10px; }
 
 .page-state { min-height: calc(100vh - 67px); display: grid; place-content: center; justify-items: center; padding: 40px; text-align: center; }
@@ -209,7 +209,7 @@ td span { margin-top: 2px; color: var(--muted); font-size: 9px; }
 .phone-screen > header strong { margin-top: 3px; font-size: 13px; }
 .phone-online, .phone-offline { display: flex; align-items: center; gap: 4px; color: #dce8e2; font-size: 9px; }
 .phone-offline { color: #f3c2b2; }
-.phone-screen main { padding: 20px; }
+.phone-screen .phone-main { padding: 20px; }
 .phone-screen h2 { margin: 4px 0 10px; font-size: 23px; }
 .stock-number { display: flex; align-items: center; gap: 10px; }
 .stock-number > strong { font: 500 48px Georgia, serif; color: var(--rust); }
@@ -229,7 +229,7 @@ td span { margin-top: 2px; color: var(--muted); font-size: 9px; }
 .phone-success span { font-size: 9px; color: var(--muted); }
 .phone-success strong { color: var(--green); font-size: 10px; }
 .phone-help { margin: 11px 0 0; padding: 0 4px; font-size: 9px; text-align: center; line-height: 1.5; }
-.phone-screen > footer { padding: 10px; color: #929793; text-align: center; font-size: 8px; }
+.phone-screen > footer { padding: 10px; color: var(--muted); text-align: center; font-size: 8px; }
 .phone-explainer h2 { margin: 5px 0 10px; font-size: 35px; }
 .phone-explainer > p { font-size: 14px; }
 .phone-explainer ul { padding-left: 18px; color: var(--muted); font-size: 12px; line-height: 1.8; }

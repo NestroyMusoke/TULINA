@@ -37,7 +37,7 @@ export function FacilityPage() {
               <div className="phone-speaker" aria-hidden="true" />
               <div className="phone-screen">
                 <header><div><span>Busiu Health Centre IV</span><strong>Medicine receiving</strong></div><div className={online ? "phone-online" : "phone-offline"}><Radio size={13} />{online ? "Online" : "Offline"}</div></header>
-                <main>
+                <div className="phone-main">
                   <span className="section-kicker">Current stock</span>
                   <h2>{overview.recommendation.product_name}</h2>
                   <div className="stock-number"><strong>{busiu.on_hand}</strong><span>pack on hand<br />{busiu.days_of_cover} days of cover</span></div>
@@ -51,7 +51,7 @@ export function FacilityPage() {
                     <ul><li><ShieldCheck size={15} /> Cold chain checked</li><li><Check size={15} /> Restores 60 days of cover</li></ul>
                   </article>
                   {overview.recommendation.status === "APPROVED" ? <div className="phone-success"><Check size={18} /><span><strong>DHO approved</strong>Waiting for the Tulina Note to be prepared</span></div> : <p className="phone-help">The District Health Officer must approve before this medicine can be prepared for collection.</p>}
-                </main>
+                </div>
                 <footer>Tulina · synthetic demo</footer>
               </div>
             </div>

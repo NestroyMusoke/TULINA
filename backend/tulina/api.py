@@ -50,7 +50,12 @@ from .metrics import metrics_for
 from .models import TransferRecommendation, TransferStatus
 from .observability import RequestContextMiddleware, current_request_id, install_problem_handlers
 from .protocol.agent import ProtocolAgentRuntime
-from .protocol.models import DeviceRegistration, QuarantineResolutionRequest, ReceiptSyncRequest
+from .protocol.models import (
+    DeviceRegistration,
+    OfflineVerificationReport,
+    QuarantineResolutionRequest,
+    ReceiptSyncRequest,
+)
 from .protocol.service import ProtocolError, ProtocolService
 from .protocol.store import ProtocolStore, ProtocolStoreError, SQLiteProtocolStore
 from .repository import Repository, SQLiteRepository
@@ -538,6 +543,24 @@ def create_app(
     ) -> dict[str, object]:
         result = await protocol_agent_runtime.reconcile(request.receipt_token, principal.actor_id)
         return result.model_dump(mode="json")
+
+    @app.post("/api/v1/security-events/offline-verification", status_code=201)
+    def report_offline_verification(
+        report: OfflineVerificationReport,
+        principal: Principal = Depends(require_action(Action.REPORT_OFFLINE_REJECTION)),
+    ) -> dict[str, object]:
+        event = repository.record_event(
+            trace_id=f"TRACE-{report.transfer_id}",
+            actor_id=principal.actor_id,
+            event_type="OFFLINE_NOTE_REJECTED",
+            summary="Receiving phone rejected a changed or unsafe Tulina Note before receipt creation",
+            details={
+                **report.model_dump(mode="json"),
+                "evidence_class": "recipient_device_report",
+                "stock_mutations_applied": 0,
+            },
+        )
+        return event.model_dump(mode="json")
 
     @app.get("/api/v1/audit/events")
     def audit_events(

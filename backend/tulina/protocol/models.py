@@ -126,6 +126,23 @@ class ReceiptSyncRequest(ProtocolModel):
     receipt_token: str = Field(min_length=20, max_length=16_384)
 
 
+class OfflineVerificationReport(ProtocolModel):
+    schema_version: Literal["1.0"] = "1.0"
+    transfer_id: str = Field(pattern=r"^TR-\d{3}$")
+    capsule_id: str = Field(pattern=r"^CAP-")
+    device_id: str = Field(pattern=r"^DEV-")
+    decision: Literal["REJECT_OFFLINE"] = "REJECT_OFFLINE"
+    reason_code: Literal[
+        "PAYLOAD_UNREADABLE",
+        "ISSUER_KEY_NOT_TRUSTED",
+        "SIGNATURE_INVALID",
+        "RECIPIENT_MISMATCH",
+        "NOTE_EXPIRED",
+        "NONCE_ALREADY_USED_LOCAL",
+    ]
+    occurred_at: datetime
+
+
 class ReconciliationDecision(StrEnum):
     APPLIED_EXACTLY_ONCE = "APPLIED_EXACTLY_ONCE"
     IDEMPOTENT_ACK = "IDEMPOTENT_ACK"

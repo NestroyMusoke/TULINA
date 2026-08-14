@@ -45,3 +45,11 @@ Every protected API operation maps to a named `Action` and a server-side role pe
 ## 011 — Evidence is concise, correlated, and redacted before hashing
 
 Tulina persists validated facts, named tool events, actors, status changes, and hashes—not model prompts or hidden reasoning. Request correlation is added to audit details, then sensitive keys and raw payloads are redacted before canonical hashing. Quarantine acknowledgement records human review but deliberately has no path to mutate inventory.
+
+## 012 — Browser acceptance is part of the release gate
+
+Component tests cannot prove IndexedDB, Web Crypto, routing, real network silence, or a complete multi-service interaction. Playwright therefore drives the canonical story against FastAPI and the PWA, with axe and responsive/failure assertions in the same isolated browser environment. Windows uses a managed hidden-process runner; CI installs Chromium explicitly.
+
+## 013 — Edge rejection evidence is minimal and labelled
+
+An offline device cannot append to the cloud audit chain at the moment of rejection. After reconnect, it reports only an allowlisted decision summary—never the signed note or receipt token. The event is labelled as device-reported evidence and cannot mutate inventory. This gives operators a durable signal without pretending the server observed the original offline interaction.

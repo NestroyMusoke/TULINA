@@ -275,7 +275,17 @@ export function TulinaProvider({ children }: { children: React.ReactNode }) {
       facilityId: "F02",
     });
     setOfflineState((current) => ({ ...current, verification }));
-  }, [overview?.protocol.note]);
+    if (verification.decision === "REJECT_OFFLINE" && online) {
+      await api.reportOfflineRejection({
+        transfer_id: decoded.payload.transfer_id,
+        capsule_id: decoded.payload.capsule_id,
+        device_id: "DEV-F02-01",
+        reason_code: verification.reason_code,
+        occurred_at: new Date().toISOString(),
+      });
+      await reload();
+    }
+  }, [online, overview?.protocol.note, reload]);
 
   useEffect(() => {
     void reload().catch(() => undefined);

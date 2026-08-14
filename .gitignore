@@ -5,6 +5,8 @@ node_modules/
 .pnpm-store/
 dist/
 build/
+frontend/playwright-report/
+frontend/test-results/
 coverage/
 __pycache__/
 .pytest_cache/

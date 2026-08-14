@@ -227,6 +227,40 @@ class ApiTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 409)
 
+    def test_offline_rejection_report_is_allowlisted_role_protected_and_audited(self) -> None:
+        report = {
+            "schema_version": "1.0",
+            "transfer_id": "TR-027",
+            "capsule_id": "CAP-TR027-001",
+            "device_id": "DEV-F02-01",
+            "decision": "REJECT_OFFLINE",
+            "reason_code": "SIGNATURE_INVALID",
+            "occurred_at": "2026-08-15T14:20:00Z",
+        }
+        denied = self.client.post(
+            "/api/v1/security-events/offline-verification",
+            headers={"X-Tulina-Role": "auditor"},
+            json=report,
+        )
+        self.assertEqual(denied.status_code, 403)
+
+        invalid = self.client.post(
+            "/api/v1/security-events/offline-verification",
+            headers=self.worker,
+            json={**report, "reason_code": "MODEL_SAID_NO"},
+        )
+        self.assertEqual(invalid.status_code, 422)
+
+        recorded = self.client.post(
+            "/api/v1/security-events/offline-verification",
+            headers=self.worker,
+            json=report,
+        )
+        self.assertEqual(recorded.status_code, 201)
+        self.assertEqual(recorded.json()["event_type"], "OFFLINE_NOTE_REJECTED")
+        self.assertEqual(recorded.json()["details"]["stock_mutations_applied"], 0)
+        self.assertTrue(self.app.state.repository.verify_audit_chain())
+
     def test_registered_device_key_cannot_be_silently_replaced(self) -> None:
         first = LocalP256Signer.generate("KEY-DEV-F02-01")
         second = LocalP256Signer.generate("KEY-DEV-F02-01")

@@ -46,3 +46,5 @@ Backend tests execute all nine canonical vectors. Frontend tests independently v
 ## Current boundary
 
 The local adapter serializes reconciliation in one process and uses SQLite transactions. Cloud Run multi-instance mode uses Firestore transaction claims/idempotency and Cloud KMS signing. The UI labels every fixture value as synthetic and stores no patient data. The hackathon deployment's role headers remain demo authentication; real operations require verified workforce identity.
+
+After reconnect, an offline rejection may be reported through the versioned `offline-verification-report` contract. This evidence is deliberately smaller than the note: IDs, device, allowlisted reason, decision, and timestamp only. The server records `OFFLINE_NOTE_REJECTED` with zero mutations and does not accept a QR payload, canonical signed content, or signature on this route.

@@ -1,3 +1,5 @@
+param([switch]$SkipE2E)
+
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
@@ -15,6 +17,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Fixture and provenance verification failed." }
     & $python scripts\verify_phase7.py
     if ($LASTEXITCODE -ne 0) { throw "Phase 7 deployment asset verification failed." }
+    & $python scripts\scan_secrets.py
+    if ($LASTEXITCODE -ne 0) { throw "Secret scan failed." }
     & $python -m ruff check backend
     if ($LASTEXITCODE -ne 0) { throw "Backend lint failed." }
     & $python -m unittest discover -s backend\tests -v
@@ -26,6 +30,12 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "Frontend tests failed." }
         & $npm --prefix "$root\frontend" run build
         if ($LASTEXITCODE -ne 0) { throw "Frontend production build failed." }
+        & $python scripts\verify_phase8.py
+        if ($LASTEXITCODE -ne 0) { throw "Phase 8 release verification failed." }
+        if (-not $SkipE2E) {
+            & "$root\scripts\e2e.ps1"
+            if ($LASTEXITCODE -ne 0) { throw "Browser E2E verification failed." }
+        }
     }
 } finally {
     Pop-Location

@@ -29,6 +29,7 @@ class Action(StrEnum):
     REGISTER_DEVICE = "register_device"
     ISSUE_NOTE = "issue_note"
     RECONCILE_RECEIPT = "reconcile_receipt"
+    REPORT_OFFLINE_REJECTION = "report_offline_rejection"
     READ_AUDIT = "read_audit"
     RESOLVE_EXCEPTION = "resolve_exception"
 
@@ -42,6 +43,7 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Action]] = {
             Action.REQUEST_APPROVAL,
             Action.REGISTER_DEVICE,
             Action.RECONCILE_RECEIPT,
+            Action.REPORT_OFFLINE_REJECTION,
         }
     ),
     Role.DHO_APPROVER: frozenset(
@@ -53,6 +55,7 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Action]] = {
             Action.REQUEST_APPROVAL,
             Action.APPROVE_TRANSFER,
             Action.ISSUE_NOTE,
+            Action.REPORT_OFFLINE_REJECTION,
             Action.READ_AUDIT,
             Action.RESOLVE_EXCEPTION,
         }

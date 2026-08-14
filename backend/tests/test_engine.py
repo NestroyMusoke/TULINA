@@ -155,6 +155,7 @@ class ContractTests(unittest.TestCase):
                 "facility.schema.json",
                 "governance-status.schema.json",
                 "inventory-batch.schema.json",
+                "offline-verification-report.schema.json",
                 "recommendation.schema.json",
                 "reconciliation-result.schema.json",
                 "stock-card-intake.schema.json",

@@ -36,6 +36,7 @@ function eventLabel(event: ActivityEvent): string {
     TRANSFER_DELIVERED: "Delivery confirmed",
     ADK_RECONCILIATION_COMPLETED: "Reconciliation Agent checked receipt",
     DUPLICATE_RECEIPT_RETRY: "Duplicate applied zero",
+    OFFLINE_NOTE_REJECTED: "Offline tamper blocked",
     RECEIPT_REJECTED: "Unsafe receipt rejected",
     RECEIPT_QUARANTINED: "Needs human review",
   };

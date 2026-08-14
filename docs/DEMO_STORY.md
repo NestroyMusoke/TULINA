@@ -13,6 +13,8 @@ The deterministic four-minute path uses `TR-027`: Mbale Regional Referral Hospit
 
 Every moment invokes an API or offline protocol operation. “Next moment” never replaces content with a static screenshot.
 
-## Current Phase 5 rehearsal
+## Submission rehearsal
 
-The Judge Demo now runs all eight moments with real operations. After the six-agent district watch and DHO approval, the ADK Dispatch Agent issues the signed QR note and the phone caches trust. The network toggle then forces the facility view offline; Web Crypto verifies the note and IndexedDB queues a device-signed receipt. Reconnection invokes the ADK Reconciliation Agent, applies one mutation, and shows before/after stock. The final moment retries the same receipt for zero additional writes and changes the signed quantity to prove rejection. Reset clears intake, runs, protocol state, browser keys, nonce memory, and receipts before reseeding the canonical fixture.
+The Judge Demo runs all eight moments with real operations. After the six-agent district watch and DHO approval, the ADK Dispatch Agent issues the signed QR note and the phone caches trust. The network toggle then forces the facility view offline; Web Crypto verifies the note and IndexedDB queues a device-signed receipt with zero API calls. Reconnection invokes the ADK Reconciliation Agent, applies one mutation, and shows before/after stock. The final moment retries the same receipt for zero additional writes, changes the signed quantity to prove rejection, and reports an allowlisted rejection event without sending the signed note. Reset clears intake, runs, protocol state, browser keys, nonce memory, and receipts before reseeding the canonical fixture.
+
+`frontend/e2e/tulina-demo.spec.ts` rehearses this path against the real API and browser. `scripts/capture_submission.ps1` saves the product screenshot set; the owner separately captures credentialed Cloud Run/Gemini proof.

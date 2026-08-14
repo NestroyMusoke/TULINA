@@ -86,6 +86,18 @@ export const api = {
       headers: roleHeaders("facility_worker"),
       body: JSON.stringify({ receipt_token: receiptToken }),
     }),
+  reportOfflineRejection: (report: {
+    transfer_id: string;
+    capsule_id: string;
+    device_id: string;
+    reason_code: string;
+    occurred_at: string;
+  }) =>
+    request("/api/v1/security-events/offline-verification", {
+      method: "POST",
+      headers: roleHeaders("facility_worker"),
+      body: JSON.stringify({ schema_version: "1.0", decision: "REJECT_OFFLINE", ...report }),
+    }),
 };
 
 export const demoStockCardImageUrl = `${API_URL}/api/v1/demo/stock-card-image`;

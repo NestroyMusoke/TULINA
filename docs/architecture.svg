@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="740" viewBox="0 0 1200 740" role="img" aria-labelledby="title desc">
+  <title id="title">Tulina system architecture</title>
+  <desc id="desc">District and offline facility interfaces connect through Cloud Run to a Google ADK fleet, deterministic tools, Firestore, Pub/Sub, Gemini, Cloud KMS, and an immutable audit timeline.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#56635e"/>
+    </marker>
+    <style>
+      .title{font:600 34px Georgia,serif;fill:#173e35}.subtitle{font:15px Arial,sans-serif;fill:#56635e}
+      .box{fill:#fffef9;stroke:#c9c3b5;stroke-width:2;rx:14}.cloud{fill:#e3ece5;stroke:#2f6656}.edge{fill:#f3e8c9;stroke:#a97823}.agent{fill:#f8f5ec;stroke:#98452f}
+      .h{font:700 17px Arial,sans-serif;fill:#23332f}.p{font:13px Arial,sans-serif;fill:#56635e}.small{font:11px Arial,sans-serif;fill:#56635e}
+      .line{stroke:#56635e;stroke-width:2;fill:none;marker-end:url(#arrow)}.dash{stroke-dasharray:7 6}.boundary{fill:none;stroke:#9fa99f;stroke-width:2;stroke-dasharray:9 7;rx:20}
+    </style>
+  </defs>
+  <rect width="1200" height="740" fill="#f3f0e8"/>
+  <text x="60" y="56" class="title">Tulina · one clinic is empty, the district isn’t</text>
+  <text x="60" y="83" class="subtitle">Action with human authority, durable state, and offline cryptographic proof</text>
+
+  <rect x="42" y="118" width="250" height="170" class="box edge"/>
+  <text x="65" y="151" class="h">Human interfaces</text>
+  <text x="65" y="181" class="p">District View · DHO approval</text>
+  <text x="65" y="207" class="p">Stock-card camera upload</text>
+  <text x="65" y="233" class="p">Facility phone · offline PWA</text>
+  <text x="65" y="259" class="small">IndexedDB · Web Crypto · cached trust</text>
+
+  <rect x="338" y="118" width="820" height="560" class="boundary"/>
+  <text x="360" y="145" class="small">GOOGLE CLOUD TRUST BOUNDARY</text>
+
+  <rect x="370" y="170" width="250" height="118" class="box cloud"/>
+  <text x="394" y="204" class="h">Cloud Run · FastAPI</text>
+  <text x="394" y="232" class="p">Role and schema gateway</text>
+  <text x="394" y="256" class="p">Workflow state machine</text>
+
+  <rect x="682" y="170" width="430" height="118" class="box cloud"/>
+  <text x="706" y="204" class="h">Google ADK fleet</text>
+  <text x="706" y="232" class="p">Stock Intake → Watch → Match → Steward</text>
+  <text x="706" y="256" class="p">Dispatch → Reconciliation</text>
+
+  <rect x="370" y="344" width="230" height="112" class="box"/>
+  <text x="394" y="378" class="h">Firestore</text>
+  <text x="394" y="405" class="p">Transfers · inventory · jobs</text>
+  <text x="394" y="429" class="p">Idempotency · audit chain</text>
+
+  <rect x="626" y="344" width="230" height="112" class="box"/>
+  <text x="650" y="378" class="h">Pub/Sub</text>
+  <text x="650" y="405" class="p">Authenticated async push</text>
+  <text x="650" y="429" class="p">Retry · dead-letter topic</text>
+
+  <rect x="882" y="344" width="230" height="112" class="box agent"/>
+  <text x="906" y="378" class="h">Gemini 3.5 Flash+</text>
+  <text x="906" y="405" class="p">Multimodal extraction</text>
+  <text x="906" y="429" class="p">Validated explanations</text>
+
+  <rect x="370" y="512" width="230" height="112" class="box"/>
+  <text x="394" y="546" class="h">Deterministic tools</text>
+  <text x="394" y="573" class="p">Stock · FEFO · route · policy</text>
+  <text x="394" y="597" class="p">No model action authority</text>
+
+  <rect x="626" y="512" width="230" height="112" class="box"/>
+  <text x="650" y="546" class="h">Cloud KMS · P-256</text>
+  <text x="650" y="573" class="p">Signs one-use Tulina Notes</text>
+  <text x="650" y="597" class="p">Private key never leaves KMS</text>
+
+  <rect x="882" y="512" width="230" height="112" class="box"/>
+  <text x="906" y="546" class="h">Cloud Logging</text>
+  <text x="906" y="573" class="p">Request and trace IDs</text>
+  <text x="906" y="597" class="p">Agent/tool execution timeline</text>
+
+  <path d="M292 203 L370 203" class="line"/>
+  <path d="M620 222 L682 222" class="line"/>
+  <path d="M495 288 L485 344" class="line"/>
+  <path d="M742 288 L742 344" class="line"/>
+  <path d="M938 288 L990 344" class="line"/>
+  <path d="M718 288 C670 340 560 465 500 512" class="line"/>
+  <path d="M790 288 C790 370 742 450 742 512" class="line"/>
+  <path d="M570 288 C710 330 875 430 972 512" class="line dash"/>
+  <path d="M370 254 C320 330 310 500 292 534" class="line dash"/>
+  <text x="67" y="334" class="small">Offline receive: signature, recipient, expiry, nonce</text>
+  <text x="67" y="354" class="small">Reconnect: device-signed receipt, exactly once</text>
+  <path d="M292 348 C328 348 335 242 370 242" class="line"/>
+
+  <text x="60" y="706" class="small">Human approval and correction remain authoritative. Gemini never approves, signs, verifies, or mutates medicine stock.</text>
+</svg>
