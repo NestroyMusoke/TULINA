@@ -11,7 +11,7 @@ from google.adk.tools import FunctionTool, ToolContext
 from pydantic import PrivateAttr
 
 from ..engine import DomainEngine
-from ..repository import SQLiteRepository
+from ..repository import Repository
 from ..security import guard_generated_output, guard_tool_output
 from .models import (
     AgentStepOutcome,
@@ -24,15 +24,15 @@ from .models import (
     WatchResult,
 )
 from .providers import DecisionProvider
-from .store import SQLiteAgentStore
+from .store import AgentStore
 from .tools import ToolCatalog
 
 
 @dataclass(frozen=True)
 class FleetDependencies:
     engine: DomainEngine
-    repository: SQLiteRepository
-    store: SQLiteAgentStore
+    repository: Repository
+    store: AgentStore
     tools: ToolCatalog
     provider: DecisionProvider
     step_delay_ms: int = 0

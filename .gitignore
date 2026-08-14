@@ -4,6 +4,7 @@
 node_modules/
 .pnpm-store/
 dist/
+build/
 coverage/
 __pycache__/
 .pytest_cache/

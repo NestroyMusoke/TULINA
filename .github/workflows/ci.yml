@@ -11,17 +11,7 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
       - name: Install tested backend dependencies
-        run: >-
-          python -m pip install
-          "pydantic>=2.12,<3"
-          "fastapi>=0.133,<1"
-          "httpx>=0.28,<1"
-          "pydantic-settings>=2.6,<3"
-          "google-adk>=2.1,<3"
-          "google-genai>=1.75,<2"
-          "google-cloud-pubsub>=2.27,<3"
-          "python-multipart>=0.0.18,<1"
-          "ruff>=0.9,<1"
+        run: python -m pip install -e ".[dev]"
       - name: Verify canonical fixture integrity
         run: python scripts/verify_phase0.py
       - name: Lint backend
@@ -30,6 +20,8 @@ jobs:
         run: python -m unittest discover -s backend/tests -v
       - name: Compile Python sources
         run: python -m compileall -q backend
+      - name: Verify Phase 7 deployment assets
+        run: python scripts/verify_phase7.py
       - name: Verify durable fixture seed
         run: python -m backend.tulina.cli seed --database work/ci-phase3.sqlite3 --reset
       - name: Prove background ADK fleet without a chat prompt
@@ -56,3 +48,16 @@ jobs:
         run: npm --prefix frontend run test
       - name: Build production PWA
         run: npm --prefix frontend run build
+
+  containers:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API container
+        run: docker build --file Dockerfile --tag tulina-api:ci .
+      - name: Build web container
+        run: >-
+          docker build --file frontend/Dockerfile
+          --build-arg VITE_API_URL=https://api.example.invalid
+          --tag tulina-web:ci .

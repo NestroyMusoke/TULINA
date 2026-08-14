@@ -43,3 +43,5 @@ The Audit view recomputes server evidence through the overview response; it does
 | Gemini unavailable/invalid | no action; provider error at guarded boundary | correct credentials/provider; fixture mode remains available for synthetic demo |
 
 Acknowledging a quarantine never retries or mutates inventory. A future corrective medicine move must begin as a new governed transfer.
+
+Phase 7 configures Cloud Run startup/liveness probes on `/healthz`; the deployment verifier separately requires `/readyz` to prove Firestore reachability and chain integrity. `infra/gcp/verify.ps1` also prints the active Google ADK/Gemini registry and a bounded Cloud Logging query for video evidence.

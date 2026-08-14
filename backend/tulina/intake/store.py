@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 import threading
 from pathlib import Path
+from typing import Protocol
 
 from .models import StockCardIntake
 
@@ -11,7 +12,18 @@ class IntakeStoreError(RuntimeError):
     pass
 
 
+class IntakeStore(Protocol):
+    backend_name: str
+
+    def reset(self) -> None: ...
+    def save(self, intake: StockCardIntake) -> StockCardIntake: ...
+    def get(self, intake_id: str) -> StockCardIntake: ...
+    def latest(self) -> StockCardIntake | None: ...
+    def latest_accepted(self) -> StockCardIntake | None: ...
+
+
 class SQLiteIntakeStore:
+    backend_name = "sqlite"
     def __init__(self, database: str | Path):
         self.database = str(database)
         if self.database != ":memory:":

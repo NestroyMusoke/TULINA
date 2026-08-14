@@ -12,7 +12,7 @@ Tulina treats medicine movement as a governed transaction. Models may interpret 
 
 ## Server authorization matrix
 
-Fixture mode uses `X-Tulina-Role` and an optional validated `X-Tulina-Actor`. These headers are an explicit demo-auth adapter, not production authentication. Phase 7 maps authenticated identities to the same `Action` permission matrix.
+Fixture mode and the public hackathon deployment use `X-Tulina-Role` and an optional validated `X-Tulina-Actor`. These headers are an explicit demo-auth adapter, not workforce authentication. The `Action` matrix and state machine are real authorization gates, but a production pilot must derive the same roles from a verified identity provider or IAP claim.
 
 | Action | Facility worker | DHO approver | Auditor |
 |---|---:|---:|---:|
@@ -30,7 +30,7 @@ The server enforces permissions through `Action` dependencies. UI role selection
 
 - **Inventory and transfer state:** mutated only inside repository transactions.
 - **DHO approval:** a named workflow event required before dispatch.
-- **Issuer private key:** generated into ignored local runtime storage for development; production design uses Cloud KMS. It is never returned by an API or written to audit/log output.
+- **Issuer private key:** generated into ignored local runtime storage for development; GCP mode requires a non-exportable Cloud KMS key. It is never returned by an API or written to audit/log output.
 - **Recipient private key:** non-exportable Web Crypto P-256 key stored by the device browser. The server receives only its public JWK.
 - **Raw stock-card image:** invocation-scoped; durable state retains a SHA-256 digest and structured evidence, not image bytes.
 - **Model/tool boundary:** tool results must be objects, remain below 128 KiB, contain no forbidden authority/secret/reasoning fields, and validate against strict Pydantic contracts.
@@ -51,6 +51,8 @@ The server enforces permissions through `Action` dependencies. UI role selection
 | Secret leakage | exact-key audit redaction and body-free structured logs | sensitive field becomes `[REDACTED]` |
 | Log injection / trace spoofing | allowlisted request-ID syntax; invalid IDs replaced | server-generated request and trace IDs |
 | Partial queue failure | durable run/step states and resumable queue | failed run remains visible; worker may retry safely |
+| Forged Pub/Sub call | OIDC audience, verified push service-account email, schema/trace/durable-reference match | HTTP 401/409; run remains unclaimed |
+| Cross-instance delivery race | Firestore transaction claim and idempotency ledger | one worker/mutation wins; redelivery is a no-op |
 | Database audit edit | SHA-256 previous-hash chain verified on readiness and audit view | readiness false and **Chain needs review** |
 
 ## Prompt-injection boundary
@@ -65,6 +67,6 @@ A Tulina Note binds issuer, donor, recipient, product, batch, quantity, approval
 
 ## Audit assurance and honest limits
 
-Local audit is **tamper-evident**, not an append-only infrastructure guarantee: an attacker with database write access could rewrite every event and recompute the chain. The chain reliably detects accidental or partial edits, and Phase 7 deployment guidance adds least-privilege storage access and centralized Cloud Logging. Production authentication, KMS-backed signing, managed retention, alert policies, and independent audit export require GCP credentials and are not fabricated in fixture mode.
+Local audit is **tamper-evident**, not an append-only infrastructure guarantee: an attacker with database write access could rewrite every event and recompute the chain. Firestore transactions protect sequence/head consistency, and Phase 7 adds least-privilege storage access, KMS signing, and centralized Cloud Logging, but an identity with unrestricted datastore write access could still rewrite history. Workforce authentication, managed retention/alerts, and independent audit export remain pilot hardening work and are not fabricated in fixture mode.
 
 Do not place patient data, production stock, credentials, or private keys in Tulina fixtures. Run secret scanning before every public push and rotate any credential that ever appears in a terminal transcript or commit.

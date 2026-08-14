@@ -6,6 +6,7 @@ import sqlite3
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Protocol
 from uuid import uuid4
 
 from .models import AuditEvent, StockPosition, TransferRecommendation, TransferStatus
@@ -18,8 +19,48 @@ class RepositoryError(RuntimeError):
     pass
 
 
+class Repository(Protocol):
+    """Persistence boundary implemented by SQLite and Firestore."""
+
+    backend_name: str
+
+    def reset(self) -> None: ...
+    def seed(
+        self,
+        positions: tuple[StockPosition, ...],
+        recommendations: tuple[TransferRecommendation, ...],
+        *,
+        reset: bool = False,
+    ) -> None: ...
+    def get_position(self, facility_id: str, product_id: str) -> StockPosition: ...
+    def get_transfer(self, transfer_id: str) -> TransferRecommendation: ...
+    def list_transfers(self) -> tuple[TransferRecommendation, ...]: ...
+    def change_status(
+        self, transfer_id: str, target: TransferStatus, context: TransitionContext
+    ) -> TransferRecommendation: ...
+    def apply_transfer_once(
+        self, transfer_id: str, idempotency_key: str, context: TransitionContext
+    ) -> bool: ...
+    def events(self, trace_id: str | None = None) -> tuple[AuditEvent, ...]: ...
+    def audit_status(self) -> dict[str, object]: ...
+    def record_event(
+        self,
+        *,
+        trace_id: str,
+        actor_id: str,
+        event_type: str,
+        summary: str,
+        details: dict[str, object] | None = None,
+    ) -> AuditEvent: ...
+    def verify_audit_chain(self) -> bool: ...
+    def mutation_count(self, transfer_id: str) -> int: ...
+    def has_mutation(self, idempotency_key: str) -> bool: ...
+
+
 class SQLiteRepository:
-    """Durable local adapter; Firestore will implement the same behavior in Phase 3."""
+    """Durable local adapter with transactional state and hash-chained audit."""
+
+    backend_name = "sqlite"
 
     def __init__(self, database: str | Path = "data/runtime/tulina.sqlite3"):
         self.database = str(database)

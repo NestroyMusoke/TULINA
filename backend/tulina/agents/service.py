@@ -5,11 +5,11 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
-from ..repository import SQLiteRepository
+from ..repository import Repository
 from .fleet import FleetDependencies, TulinaFleetAgent
 from .models import AgentRun, AgentRunDetail, MatchResult, WatchCycleRequest
 from .queue import JobQueue
-from .store import SQLiteAgentStore
+from .store import AgentStore
 
 ADK_APP_NAME = "agents"
 
@@ -19,8 +19,8 @@ class AgentWorkflowService:
         self,
         *,
         fleet: TulinaFleetAgent,
-        store: SQLiteAgentStore,
-        repository: SQLiteRepository,
+        store: AgentStore,
+        repository: Repository,
         queue: JobQueue,
         dependencies: FleetDependencies,
     ):
@@ -59,6 +59,14 @@ class AgentWorkflowService:
 
     async def process_next(self) -> AgentRun | None:
         run = self.store.claim_next()
+        return await self._process_claimed(run)
+
+    async def process_run(self, run_id: str) -> AgentRun | None:
+        """Claim one Pub/Sub referenced run; duplicate deliveries become no-ops."""
+        run = self.store.claim(run_id)
+        return await self._process_claimed(run)
+
+    async def _process_claimed(self, run: AgentRun | None) -> AgentRun | None:
         if run is None:
             return None
         self.repository.record_event(

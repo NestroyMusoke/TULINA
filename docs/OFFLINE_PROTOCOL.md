@@ -25,7 +25,7 @@ The note binds transfer, donor, recipient, product, batch, quantity, approval, i
 
 ## Keys
 
-Fixture mode verifies the preserved public keys and signatures in the canonical source pack without changing them. Live local mode generates an issuer key into the ignored runtime SQLite database; no private key is present in source control. Browser device private keys are non-exportable and remain in IndexedDB. The production signer port is intentionally compatible with a Cloud KMS P-256 signing adapter in Phase 7.
+Fixture mode verifies the preserved public keys and signatures in the canonical source pack without changing them. Live local mode generates an issuer key into the ignored runtime SQLite database; no private key is present in source control. Browser device private keys are non-exportable and remain in IndexedDB. GCP mode signs SHA-256 digests with a non-exportable Cloud KMS `EC_SIGN_P256_SHA256` key and converts KMS DER signatures to the same offline Web Crypto-compatible P1363 format.
 
 ## Nine acceptance vectors
 
@@ -45,4 +45,4 @@ Backend tests execute all nine canonical vectors. Frontend tests independently v
 
 ## Current boundary
 
-The local adapter serializes reconciliation in one process and uses SQLite transactions. Cloud Run multi-instance production uses the Phase 7 Firestore transaction and KMS adapters. The UI labels every fixture value as synthetic and stores no patient data.
+The local adapter serializes reconciliation in one process and uses SQLite transactions. Cloud Run multi-instance mode uses Firestore transaction claims/idempotency and Cloud KMS signing. The UI labels every fixture value as synthetic and stores no patient data. The hackathon deployment's role headers remain demo authentication; real operations require verified workforce identity.

@@ -4,6 +4,7 @@ import base64
 import hashlib
 import json
 from dataclasses import dataclass
+from typing import Protocol
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
@@ -86,6 +87,17 @@ def decode_envelope(prefix: str, token: str) -> dict[str, object]:
     if not isinstance(value, dict):
         raise ValueError("Protocol envelope must be an object")
     return value
+
+
+class P256Signer(Protocol):
+    """Signer port shared by the local key and Cloud KMS adapters."""
+
+    key_id: str
+
+    @property
+    def jwk(self) -> dict[str, object]: ...
+
+    def sign(self, canonical_payload: str) -> str: ...
 
 
 @dataclass(frozen=True)

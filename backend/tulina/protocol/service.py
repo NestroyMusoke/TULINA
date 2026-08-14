@@ -8,10 +8,10 @@ from datetime import UTC, datetime, timedelta
 from pydantic import ValidationError
 
 from ..models import TransferStatus
-from ..repository import RepositoryError, SQLiteRepository
+from ..repository import Repository, RepositoryError
 from ..state_machine import TransitionContext
 from .crypto import (
-    LocalP256Signer,
+    P256Signer,
     canonical_json,
     decode_envelope,
     encode_envelope,
@@ -33,7 +33,7 @@ from .models import (
     SignedTulinaNote,
     TrustBundle,
 )
-from .store import ProtocolStoreError, SQLiteProtocolStore
+from .store import ProtocolStore, ProtocolStoreError, SQLiteProtocolStore
 
 NOTE_PREFIX = "TULINA1"
 RECEIPT_PREFIX = "TULINA_RECEIPT1"
@@ -55,15 +55,20 @@ class ProtocolService:
     def __init__(
         self,
         *,
-        repository: SQLiteRepository,
-        store: SQLiteProtocolStore,
+        repository: Repository,
+        store: ProtocolStore,
         clock: Callable[[], datetime] | None = None,
         trusted_keys: tuple[PublicKey, ...] | None = None,
+        signer: P256Signer | None = None,
     ):
         self.repository = repository
         self.store = store
         self.clock = clock or (lambda: datetime.now(UTC))
-        self.signer: LocalP256Signer = store.get_or_create_signer()
+        if signer is None:
+            if not isinstance(store, SQLiteProtocolStore):
+                raise ProtocolError("Cloud protocol storage requires an explicit KMS signer")
+            signer = store.get_or_create_signer()
+        self.signer = signer
         self.trusted_keys = trusted_keys
         self._lock = threading.RLock()
 

@@ -13,6 +13,8 @@ Push-Location $root
 try {
     & $python scripts\verify_phase0.py
     if ($LASTEXITCODE -ne 0) { throw "Fixture and provenance verification failed." }
+    & $python scripts\verify_phase7.py
+    if ($LASTEXITCODE -ne 0) { throw "Phase 7 deployment asset verification failed." }
     & $python -m ruff check backend
     if ($LASTEXITCODE -ne 0) { throw "Backend lint failed." }
     & $python -m unittest discover -s backend\tests -v

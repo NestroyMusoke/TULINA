@@ -1,0 +1,15 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Browser clients never access Tulina state directly. FastAPI uses a least-privilege
+    // Cloud Run service identity through the privileged server client library.
+    match /tulina_environments/{environment}/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

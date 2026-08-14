@@ -1,0 +1,17 @@
+.git
+.github
+.env
+.env.*
+!.env.example
+.venv
+**/__pycache__
+**/*.pyc
+**/*.sqlite3
+**/node_modules
+frontend/dist
+data/runtime
+outputs
+work
+playwright-report
+test-results
+*.egg-info

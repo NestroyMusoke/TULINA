@@ -4,7 +4,17 @@ import os
 from importlib.metadata import version
 from pathlib import Path
 
-from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import (
+    BackgroundTasks,
+    Depends,
+    FastAPI,
+    File,
+    Header,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -13,6 +23,22 @@ from .agents.models import WatchCycleRequest
 from .agents.runtime import build_agent_runtime
 from .agents.settings import AgentSettings
 from .agents.store import AgentStoreError
+from .cloud.document_store import DocumentStore, GoogleFirestoreDocumentStore
+from .cloud.firestore import (
+    FirestoreAgentStore,
+    FirestoreIntakeStore,
+    FirestoreProtocolStore,
+    FirestoreRepository,
+)
+from .cloud.kms import CloudKmsP256Signer
+from .cloud.pubsub import (
+    PubSubAuthenticationError,
+    PubSubPayloadError,
+    PubSubPushEnvelope,
+    TokenVerifier,
+    decode_agent_run,
+    verify_pubsub_oidc,
+)
 from .engine import DomainEngine
 from .fixtures import load_fixture
 from .intake.agent import StockIntakeAgentRuntime
@@ -26,8 +52,8 @@ from .observability import RequestContextMiddleware, current_request_id, install
 from .protocol.agent import ProtocolAgentRuntime
 from .protocol.models import DeviceRegistration, QuarantineResolutionRequest, ReceiptSyncRequest
 from .protocol.service import ProtocolError, ProtocolService
-from .protocol.store import ProtocolStoreError, SQLiteProtocolStore
-from .repository import SQLiteRepository
+from .protocol.store import ProtocolStore, ProtocolStoreError, SQLiteProtocolStore
+from .repository import Repository, SQLiteRepository
 from .security import ROLE_PERMISSIONS, Action, Principal, Role, require_action
 from .state_machine import InvalidTransition, TransitionContext
 
@@ -61,23 +87,45 @@ def create_app(
     agent_settings: AgentSettings | None = None,
     publisher=None,
     intake_provider=None,
+    document_store: DocumentStore | None = None,
+    kms_client=None,
+    oidc_verifier: TokenVerifier | None = None,
 ) -> FastAPI:
     data = load_fixture(fixture)
     engine = DomainEngine(data)
+    agent_settings = agent_settings or AgentSettings()
     database_path = database or os.getenv(
         "TULINA_DATABASE_PATH", "data/runtime/tulina.sqlite3"
     )
-    repository = SQLiteRepository(database_path)
+    cloud_store: DocumentStore | None = None
+    if agent_settings.repository_backend == "firestore":
+        cloud_store = document_store or GoogleFirestoreDocumentStore(
+            project_id=agent_settings.google_cloud_project or "",
+            namespace=agent_settings.firestore_namespace,
+            database=agent_settings.firestore_database,
+        )
+        repository: Repository = FirestoreRepository(cloud_store)
+        agent_store = FirestoreAgentStore(cloud_store)
+        intake_store = FirestoreIntakeStore(cloud_store)
+        protocol_store: ProtocolStore = FirestoreProtocolStore(cloud_store)
+        signer = CloudKmsP256Signer(
+            agent_settings.kms_key_version or "", client=kms_client
+        )
+    else:
+        repository = SQLiteRepository(database_path)
+        agent_store = None
+        intake_store = SQLiteIntakeStore(database_path)
+        protocol_store = SQLiteProtocolStore(database_path)
+        signer = None
     repository.seed(engine.all_positions(), engine.recommendations())
-    agent_settings = agent_settings or AgentSettings()
     agent_service = build_agent_runtime(
         engine=engine,
         repository=repository,
         database=database_path,
         settings=agent_settings,
         publisher=publisher,
+        store=agent_store,
     )
-    intake_store = SQLiteIntakeStore(database_path)
     intake_service = StockCardIntakeService(
         engine=engine,
         repository=repository,
@@ -85,8 +133,9 @@ def create_app(
         provider=intake_provider or build_stock_card_provider(agent_settings),
     )
     intake_agent_runtime = StockIntakeAgentRuntime(intake_service)
-    protocol_store = SQLiteProtocolStore(database_path)
-    protocol_service = ProtocolService(repository=repository, store=protocol_store)
+    protocol_service = ProtocolService(
+        repository=repository, store=protocol_store, signer=signer
+    )
     protocol_agent_runtime = ProtocolAgentRuntime(protocol_service)
 
     app = FastAPI(
@@ -105,6 +154,7 @@ def create_app(
     app.state.protocol_store = protocol_store
     app.state.protocol_service = protocol_service
     app.state.protocol_agent_runtime = protocol_agent_runtime
+    app.state.document_store = cloud_store
     allowed_origins = os.getenv("TULINA_ALLOWED_ORIGINS", "http://localhost:5173")
     app.add_middleware(
         CORSMiddleware,
@@ -122,15 +172,29 @@ def create_app(
         return {"status": "ok", "service": "tulina-api", "mode": agent_settings.mode}
 
     @app.get("/readyz")
-    def ready() -> dict[str, object]:
+    def ready(response: Response) -> dict[str, object]:
+        try:
+            storage_reachable = cloud_store.ping() if cloud_store else True
+            audit_verified = repository.verify_audit_chain()
+            signer_reachable = bool(signer.jwk) if signer else True
+        except Exception:
+            storage_reachable = False
+            audit_verified = False
+            signer_reachable = False
+        is_ready = storage_reachable and audit_verified and signer_reachable
+        if not is_ready:
+            response.status_code = 503
         return {
-            "ready": repository.verify_audit_chain(),
-            "database": "sqlite",
+            "ready": is_ready,
+            "database": repository.backend_name,
+            "storage_reachable": storage_reachable,
+            "signer_reachable": signer_reachable,
             "fixture_records": len(engine.all_positions()),
             "agent_runtime": "google-adk",
             "queue_backend": agent_service.queue.backend_name,
+            "workflow_store": agent_service.store.backend_name,
             "stock_card_provider": intake_service.provider.name,
-            "offline_note_signer": "local-p256",
+            "offline_note_signer": "cloud-kms-p256" if signer else "local-p256",
         }
 
     @app.get("/api/v1/overview")
@@ -212,6 +276,54 @@ def create_app(
             "processed": True,
             "run": agent_service.detail(processed.run_id).model_dump(mode="json"),
         }
+
+    @app.post("/api/v1/internal/pubsub/agent-runs", status_code=204)
+    async def process_pubsub_agent_run(
+        envelope: PubSubPushEnvelope,
+        authorization: str | None = Header(default=None),
+    ) -> Response:
+        if agent_service.queue.backend_name != "pubsub":
+            raise HTTPException(status_code=404, detail="Pub/Sub worker is not configured")
+        try:
+            verify_pubsub_oidc(
+                authorization,
+                audience=agent_settings.pubsub_audience or "",
+                service_account=agent_settings.pubsub_service_account or "",
+                verifier=oidc_verifier,
+            )
+            published = decode_agent_run(envelope)
+            durable = agent_service.store.get_run(published.run_id)
+        except PubSubAuthenticationError as exc:
+            raise HTTPException(status_code=401, detail=str(exc)) from exc
+        except (PubSubPayloadError, AgentStoreError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        durable_reference = (
+            durable.run_id,
+            durable.trace_id,
+            durable.requested_by,
+            durable.provider,
+            durable.model_name,
+            durable.queue_backend,
+            durable.request,
+            durable.created_at,
+        )
+        published_reference = (
+            published.run_id,
+            published.trace_id,
+            published.requested_by,
+            published.provider,
+            published.model_name,
+            published.queue_backend,
+            published.request,
+            published.created_at,
+        )
+        if durable_reference != published_reference:
+            raise HTTPException(
+                status_code=409,
+                detail="Published workflow reference does not match durable Firestore state",
+            )
+        await agent_service.process_run(published.run_id)
+        return Response(status_code=204)
 
     @app.get("/api/v1/demo/stock-card-image")
     def demo_stock_card_image() -> FileResponse:
@@ -470,7 +582,7 @@ def create_app(
     return app
 
 
-def _network_payload(engine: DomainEngine, repository: SQLiteRepository) -> list[dict[str, object]]:
+def _network_payload(engine: DomainEngine, repository: Repository) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for calculated in engine.all_positions():
         position = repository.get_position(calculated.facility_id, calculated.product_id)
@@ -495,13 +607,15 @@ def _network_payload(engine: DomainEngine, repository: SQLiteRepository) -> list
 
 
 def _governance_payload(
-    repository: SQLiteRepository, protocol_store: SQLiteProtocolStore
+    repository: Repository, protocol_store: ProtocolStore
 ) -> dict[str, object]:
     return {
         "audit_chain": repository.audit_status(),
         "unresolved_exceptions": protocol_store.unresolved_quarantined_count(),
         "exceptions": [row.model_dump(mode="json") for row in protocol_store.quarantine_cases()],
-        "authorization_mode": "fixture-role-headers",
+        "authorization_mode": (
+            "fixture-role-headers" if repository.backend_name == "sqlite" else "cloud-run-and-role-headers"
+        ),
         "role_permissions": {
             role.value: sorted(action.value for action in actions)
             for role, actions in ROLE_PERMISSIONS.items()

@@ -4,7 +4,7 @@ from google.adk.tools import FunctionTool
 
 from ..engine import DomainEngine
 from ..models import TransferRecommendation, TransferStatus, WatchSignalType
-from ..repository import SQLiteRepository
+from ..repository import Repository
 from .models import (
     GateResult,
     GovernanceResult,
@@ -17,7 +17,7 @@ from .models import (
 class ToolCatalog:
     """Validated deterministic functions exposed as genuine Google ADK tools."""
 
-    def __init__(self, engine: DomainEngine, repository: SQLiteRepository):
+    def __init__(self, engine: DomainEngine, repository: Repository):
         self.validate_inventory_snapshot = FunctionTool(
             self._validate_inventory_snapshot(engine, repository)
         )
@@ -31,7 +31,7 @@ class ToolCatalog:
 
     @staticmethod
     def _validate_inventory_snapshot(
-        engine: DomainEngine, repository: SQLiteRepository
+        engine: DomainEngine, repository: Repository
     ):
         def validate_inventory_snapshot(
             recipient_facility_id: str, product_id: str
@@ -100,7 +100,7 @@ class ToolCatalog:
         return rank_safe_transfers
 
     @staticmethod
-    def _evaluate_governance(repository: SQLiteRepository):
+    def _evaluate_governance(repository: Repository):
         def evaluate_governance(transfer_id: str) -> dict[str, object]:
             """Revalidate every policy gate and identify the required human authority."""
             recommendation = repository.get_transfer(transfer_id)
@@ -116,7 +116,7 @@ class ToolCatalog:
         return evaluate_governance
 
     @staticmethod
-    def _check_dispatch_gate(repository: SQLiteRepository):
+    def _check_dispatch_gate(repository: Repository):
         def check_dispatch_gate(transfer_id: str) -> dict[str, object]:
             """Check whether human approval allows dispatch; never issue a note here."""
             status = repository.get_transfer(transfer_id).status
@@ -134,7 +134,7 @@ class ToolCatalog:
         return check_dispatch_gate
 
     @staticmethod
-    def _check_reconciliation_gate(repository: SQLiteRepository):
+    def _check_reconciliation_gate(repository: Repository):
         def check_reconciliation_gate(transfer_id: str) -> dict[str, object]:
             """Check whether a signed receipt is ready; never mutate inventory here."""
             status = repository.get_transfer(transfer_id).status

@@ -5,6 +5,7 @@ import sqlite3
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Protocol
 from uuid import uuid4
 
 from .models import (
@@ -21,8 +22,46 @@ class AgentStoreError(RuntimeError):
     pass
 
 
+class AgentStore(Protocol):
+    backend_name: str
+
+    def reset(self) -> None: ...
+    def enqueue(
+        self,
+        *,
+        request: WatchCycleRequest,
+        requested_by: str,
+        provider: str,
+        model_name: str | None,
+        queue_backend: str,
+    ) -> AgentRun: ...
+    def claim(self, run_id: str) -> AgentRun | None: ...
+    def claim_next(self) -> AgentRun | None: ...
+    def get_run(self, run_id: str) -> AgentRun: ...
+    def latest_run(self) -> AgentRun | None: ...
+    def detail(self, run_id: str) -> AgentRunDetail: ...
+    def latest_detail(self) -> AgentRunDetail | None: ...
+    def start_step(self, *, run_id: str, agent_name: str, tool_name: str) -> AgentStep: ...
+    def finish_step(
+        self,
+        step_id: str,
+        *,
+        status: AgentStepStatus,
+        summary: str,
+        evidence: dict[str, object],
+    ) -> AgentStep: ...
+    def fail_step(self, step_id: str, *, error_code: str) -> AgentStep: ...
+    def complete_run(
+        self, run_id: str, *, transfer_id: str, event_authors: tuple[str, ...]
+    ) -> AgentRun: ...
+    def fail_run(self, run_id: str, *, error_code: str) -> AgentRun: ...
+    def steps(self, run_id: str) -> tuple[AgentStep, ...]: ...
+
+
 class SQLiteAgentStore:
     """Durable workflow and tool timeline for local fixture execution."""
+
+    backend_name = "sqlite"
 
     def __init__(self, database: str | Path):
         self.database = str(database)
@@ -154,6 +193,34 @@ class SQLiteAgentStore:
                 )
                 self._connection.commit()
                 return self.get_run(row["run_id"])
+            except Exception:
+                self._connection.rollback()
+                raise
+
+    def claim(self, run_id: str) -> AgentRun | None:
+        with self._lock:
+            self._connection.execute("BEGIN IMMEDIATE")
+            try:
+                row = self._connection.execute(
+                    "SELECT status FROM agent_runs WHERE run_id=?", (run_id,)
+                ).fetchone()
+                if row is None:
+                    self._connection.rollback()
+                    raise AgentStoreError(f"Unknown agent run {run_id}")
+                if row["status"] != AgentRunStatus.QUEUED.value:
+                    self._connection.commit()
+                    return None
+                self._connection.execute(
+                    "UPDATE agent_runs SET status=?, started_at=? WHERE run_id=? AND status=?",
+                    (
+                        AgentRunStatus.RUNNING.value,
+                        datetime.now(UTC).isoformat(),
+                        run_id,
+                        AgentRunStatus.QUEUED.value,
+                    ),
+                )
+                self._connection.commit()
+                return self.get_run(run_id)
             except Exception:
                 self._connection.rollback()
                 raise

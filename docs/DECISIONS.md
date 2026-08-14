@@ -18,7 +18,7 @@ Legacy names remain inside canonical signed payloads. They are translated only a
 
 ## 005 — Deployment target
 
-Cloud Run, Firestore, Pub/Sub, Vertex AI/Gemini, and optional Cloud KMS are the submission architecture. The generic Sites hosting path is intentionally not used because it would replace the required GCP topology.
+Cloud Run, Firestore, Pub/Sub, Vertex AI/Gemini, and Cloud KMS are the submission architecture. The generic Sites hosting path is intentionally not used because it would replace the required GCP topology. Cloud KMS remains absent from credential-free local mode but is required by the managed GCP runtime so an ephemeral container never owns the issuer private key.
 
 ## 006 — ADK orchestrates; durable stores remain authoritative
 

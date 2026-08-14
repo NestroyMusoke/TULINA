@@ -6,7 +6,10 @@ The backend now includes the credential-free domain foundation, agent runtime, a
 - `tulina/engine.py` calculates stock positions, watch signals, safe matches, and evidence.
 - `tulina/policy.py` enforces cover, facility level, batch, route, and transport gates.
 - `tulina/state_machine.py` prevents approval or delivery authority from being bypassed.
-- `tulina/repository.py` persists inventory, transfers, idempotency keys, and a hash-chained audit log in SQLite.
+- `tulina/repository.py` defines the persistence port and its local SQLite transaction adapter.
+- `tulina/cloud/firestore.py` persists the full cloud workflow and exactly-once ledger in Firestore transactions.
+- `tulina/cloud/pubsub.py` verifies authenticated Pub/Sub push and durable run references.
+- `tulina/cloud/kms.py` signs Tulina Notes with a non-exportable Cloud KMS P-256 key.
 - `tulina/metrics.py` calculates judge-facing operational results.
 - `tulina/agents/fleet.py` defines the real six-agent Google ADK hierarchy.
 - `tulina/agents/tools.py` exposes deterministic calculations as validated ADK function tools.
@@ -19,3 +22,5 @@ The backend now includes the credential-free domain foundation, agent runtime, a
 - `tulina/intake/store.py` durably stores structured observations and corrections without retaining image bytes.
 
 Run `python -m backend.tulina.cli recommend` to inspect derived recommendations. Run `python -m backend.tulina.agents.cli --reset` to execute the ADK fleet from a scheduled event rather than a chat prompt.
+
+Run `python -m backend.tulina.cloud.cli status --project PROJECT_ID` after ADC login to inspect a deployed Firestore namespace without modifying it. Cloud deployment commands are in `docs/DEPLOYMENT_GCP.md`.

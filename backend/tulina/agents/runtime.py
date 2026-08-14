@@ -3,26 +3,27 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..engine import DomainEngine
-from ..repository import SQLiteRepository
+from ..repository import Repository
 from .fleet import FleetDependencies, build_fleet
 from .providers import build_decision_provider
 from .queue import LocalJobQueue, PubSubJobQueue
 from .service import AgentWorkflowService
 from .settings import AgentSettings
-from .store import SQLiteAgentStore
+from .store import AgentStore, SQLiteAgentStore
 from .tools import ToolCatalog
 
 
 def build_agent_runtime(
     *,
     engine: DomainEngine,
-    repository: SQLiteRepository,
+    repository: Repository,
     database: str | Path,
     settings: AgentSettings | None = None,
     publisher=None,
+    store: AgentStore | None = None,
 ) -> AgentWorkflowService:
     settings = settings or AgentSettings()
-    store = SQLiteAgentStore(database)
+    store = store or SQLiteAgentStore(database)
     provider = build_decision_provider(settings)
     tools = ToolCatalog(engine, repository)
     dependencies = FleetDependencies(

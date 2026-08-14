@@ -50,8 +50,8 @@ sequenceDiagram
 
 - `POST /api/v1/agent-runs/watch` writes a `QUEUED` run and returns HTTP 202.
 - Local mode processes through a FastAPI background task; `POST /api/v1/agent-worker/process-next` resumes the next queued job after restart.
-- Pub/Sub mode publishes only a versioned durable run record. Cloud Run push wiring arrives in Phase 7.
-- SQLite retains agent runs, tool steps, notes, public device registrations, receipts, nonces, reconciliation results, inventory mutations, and hash-chained audit events.
+- Pub/Sub mode publishes only a versioned durable run record. An authenticated push worker verifies the OIDC identity and exact Firestore reference before claiming it.
+- SQLite retains local state; Firestore retains cloud agent runs, tool steps, notes, public device registrations, receipts, nonces, reconciliation results, inventory mutations, and hash-chained audit events.
 - ADK sessions are invocation-scoped. Hidden reasoning and prompts are not durable operational state.
 - Every tool result must be an object below 128 KiB, contain no forbidden secret/prompt/reasoning fields, and pass its strict output model before becoming invocation or durable state.
 
@@ -59,9 +59,9 @@ sequenceDiagram
 
 - `fixture`: no key required. ADK and deterministic tools run; saved explanation/extraction records clearly state Gemini was not called.
 - `gemini`: requires `GOOGLE_API_KEY`; uses `gemini-3.5-flash` or newer.
-- `gcp`: requires `GOOGLE_CLOUD_PROJECT`; uses Vertex AI with the same model contracts.
+- `gcp`: requires Vertex AI project, Firestore, Pub/Sub audience/service identity, and a full Cloud KMS key-version resource; uses the same model contracts.
 
-Startup rejects an unversioned or old Gemini model, missing live credentials, or Pub/Sub mode without a project ID.
+Startup rejects an unversioned or old Gemini model, missing live credentials, Pub/Sub without a project, or incomplete GCP persistence/queue/KMS identity settings.
 
 ## Proof hooks
 
@@ -74,4 +74,4 @@ Startup rejects an unversioned or old Gemini model, missing live credentials, or
 
 ## Honest current limits
 
-Live Gemini requires credentials and is covered locally by schema-validation adapter tests, never a fabricated network response. Fixture vision replay is bound to the supplied image digest. Local reconciliation is serialized within one process; Phase 7 replaces that boundary with Firestore transactions, Cloud Run, Pub/Sub subscriptions, and optional Cloud KMS signing.
+Live Gemini and managed Google services require project credentials and are covered locally by schema-validation, in-memory transaction, OIDC, and KMS protocol testsâ€”never fabricated network success. Fixture vision replay is bound to the supplied image digest. Only a credentialed deployment and `infra/gcp/verify.ps1` can prove the external project configuration.

@@ -1,0 +1,7 @@
+{
+  "firestore": {
+    "database": "(default)",
+    "rules": "infra/gcp/firestore.rules",
+    "indexes": "infra/gcp/firestore.indexes.json"
+  }
+}

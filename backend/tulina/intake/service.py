@@ -10,7 +10,7 @@ from pydantic import ValidationError
 
 from ..engine import DomainEngine
 from ..models import SecurityFinding
-from ..repository import SQLiteRepository
+from ..repository import Repository
 from ..security import scan_untrusted_text
 from .models import (
     CorrectionRecord,
@@ -21,7 +21,7 @@ from .models import (
     ValidatedStockObservation,
 )
 from .providers import StockCardProvider
-from .store import SQLiteIntakeStore
+from .store import IntakeStore
 
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 CONFIDENCE_THRESHOLD = 0.85
@@ -61,8 +61,8 @@ class StockCardIntakeService:
         self,
         *,
         engine: DomainEngine,
-        repository: SQLiteRepository,
-        store: SQLiteIntakeStore,
+        repository: Repository,
+        store: IntakeStore,
         provider: StockCardProvider,
     ):
         self.engine = engine

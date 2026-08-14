@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from .models import AgentRun, WatchCycleRequest
-from .store import SQLiteAgentStore
+from .store import AgentStore
 
 
 class JobQueue(Protocol):
@@ -22,7 +22,7 @@ class JobQueue(Protocol):
 class LocalJobQueue:
     backend_name = "local"
 
-    def __init__(self, store: SQLiteAgentStore):
+    def __init__(self, store: AgentStore):
         self.store = store
 
     def enqueue(
@@ -50,7 +50,7 @@ class PubSubJobQueue:
     def __init__(
         self,
         *,
-        store: SQLiteAgentStore,
+        store: AgentStore,
         project_id: str,
         topic: str,
         publisher=None,
